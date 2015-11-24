@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "Not implemented yet."
+echo "Arch: `uname`"
+exit 1

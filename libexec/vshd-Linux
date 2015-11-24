@@ -1,0 +1,370 @@
+#!/bin/sh
+
+#
+# This script is supposed to be run by the sshd in the vsh-host
+# Users public keys need to be distributed to each vsh-host and a vshd.ini
+# need to be configured to set permissions.
+#
+
+############################
+# Variables
+############################
+
+vshprefix=/opt/vzsh
+vshdini=${vshprefix}/etc/vshd.ini
+moduledir=${vshprefix}/modulesd
+
+############################
+# Logging
+############################
+
+logger "$0 ($$): $*"
+logger "$0 ($$): $SSH_ORIGINAL_COMMAND"
+
+############################
+# Functions
+############################
+
+usage() {
+        cat <<EOF
+VZ shell daemon
+
+Usage: $0 ...
+
+Actions:
+
+From vsh:
+  hostrun [<command>]
+    Run command on local host.
+
+  list
+    Show list of all containers.
+
+  module <modulename> [<args>]
+
+  move <ct> <host>
+  move-offline <ct> <host>
+    Move container to another host.
+
+  moveall <host> [<host>]
+  moveall-offline <host> [<host>]
+    Move all containers to other hosts.
+
+  run <ct> [<command>]
+    Run command in container.
+
+  start <ct>
+  stop <ct>
+    Start or stop a container.
+EOF
+}
+
+# vsh_movect live|offline <ct> <host>
+# Try to move a container to another host
+vsh_movect() {
+  mode=$1
+  ct=$2
+  otherhost=$3
+
+  case "$mode" in
+    offline)
+      live=""
+      ;;
+    live)
+      live=`vshlist -Hat | grep " ${ct}\$" | awk '{print $3}'`
+      if [ "$live" = "running" ]; then
+        live="--live"
+      else
+        live=""
+      fi
+      ;;
+  esac
+
+  vzmigrate --ssh="-o BatchMode=yes -o StrictHostKeyChecking=no" --remove-area no --keep-dst $live $otherhost $ct
+}
+
+# vsh_runas user ct
+# Check which user to run as in ct
+vsh_runas() {
+  export tmp_user=$1
+  export tmp_ct=$2
+
+  # Create search-string from ini-file
+  searchuser_str=`
+    # Get all non-coment lines
+    grep -v "^#" $vshdini | \
+
+    # Print lines under [groups]
+    awk '/^\[/{p=0}/^\[groups\]$/{p=1}{if(p)print "@"$0","}' | \
+    egrep -v '^\[|^,$' | \
+
+    # Grep for current user
+    grep "[:,]$tmp_user," | \
+
+    # Make search-string from groups and user.
+    awk -F: '{printf "^"$1"=.*$|"}END{print "^"ENVIRON["tmp_user"]".*$"}'`
+
+  vsh_return=`
+    # Search the containers for user/group return user to run as
+    grep -v "^#" $vshdini | \
+
+    # Print lines under [containers]
+    awk '/^\[/{p=0}/^\[containers\]$/{p=1}{if(p)print $0}' | \
+    egrep -v '^\[|^$' | \
+
+    # Get container or *
+    egrep "^$tmp_ct:|^\*:" | \
+
+    # Get the list of all users/groups
+    cut -d: -f2|tr , '\012' | \
+
+    # Try to find user or users groups
+    egrep $searchuser_str | \
+
+    # Only parse lines where there is a runas-user set
+    grep = | cut -d= -f2`
+
+  [ "$vsh_return" = "" ] && vsh_return="root"
+}
+
+
+# vsh_checkperm(section, user, item)
+# Check persmissions for user
+vsh_checkperm() {
+  export tmp_section=$1
+  export tmp_user=$2
+  export tmp_item=$3
+  vsh_return=noperm
+
+  # Create search-string from ini-file
+  searchuser_str=`
+    # Get all non-comment lines
+    grep -v "^#" $vshdini | \
+
+    # Print lines under [groups]
+    awk '/^\[/{p=0}/^\[groups\]$/{p=1}{if(p)print "@"$0","}' | \
+    egrep -v '^\[|^,$' | \
+
+    # Grep for current user
+    grep "[:,]$tmp_user," | \
+
+    # Make search-string from groups and user.
+    awk -F: '{printf "^"$1"$|"}END{print "^"ENVIRON["tmp_user"]"$"}'`
+
+  # Search for user/groups if they have permisson
+  # Get all non-comment lines
+  grep -v "^#" $vshdini | \
+
+  # Print lines under [containers]
+  awk "/^\[/{p=0}/^\[${tmp_section}\]\$/{p=1}{if(p)print \$0}" | \
+  egrep -v '^\[|^$' | \
+
+  # Get container or * and print user/groups
+  egrep "^$tmp_item:|^\*:" | \
+  cut -d: -f2|tr , '\012'|sed 's/=.*$//' |\
+
+  # Search user/group for permissions
+  egrep $searchuser_str > /dev/null && vsh_return=allowed
+}
+
+# vsh_parse options ...
+# Parse arguments from ssh-key or commandline
+vsh_parse_arg() {
+  for opt in $*; do
+    case "$opt" in
+      user=*) user=${1#user=}; shift;;
+      --) shift; break;;
+    esac
+  done
+}
+
+# vsh_parse options ...
+# Parse arguments from client
+vsh_parse() {
+  for opt in $*; do
+    case "$opt" in
+      hostrun) action=hostrun; shift; ccmd=$*; break;;
+      list) action=list; shift;;
+      module) action=module; shift; module=$1; shift; ccmd=$*; break;;
+      move) action=move; shift; ct=$1; shift; otherhost=$1; break;;
+      move-offline) action=move-offline;shift;ct=$1;shift;otherhost=$1;break;;
+      moveall) action=moveall; shift; otherhosts=$*; break;;
+      moveall-offline) action=moveall-offline; shift; otherhosts=$*; break;;
+      run) action=run; shift; ct=$1; shift; ccmd=$*; break;;
+      start) action=start; shift; ct=$1; break;;
+      stop) action=stop; shift; ct=$1; break;;
+      --) shift; break;;
+    esac
+  done
+}
+
+
+############################
+# Main
+############################
+
+# Default values
+action=usage
+user=nobody
+
+# Parse arguments
+vsh_parse_arg $*
+
+# Parse command
+vsh_parse $SSH_ORIGINAL_COMMAND
+
+case "$action" in
+  hostrun)
+    # Run command/start shell on host.
+    vsh_checkperm hosts $user `hostname`
+    if [ "$vsh_return" = "allowed" ]
+    then
+      if [ "$ccmd" = "" ]
+      then
+        /bin/bash -i
+      else
+        $ccmd
+      fi
+    else
+      echo "$0: permission denied for $user@localhost" 
+      exit 1
+    fi
+    break;;
+
+  list)
+    (vzlist -Hat -o hostname,ctid,status | sed "s/^/`hostname`\t/")
+    break;;
+
+  module)
+    vsh_checkperm modules $user $module
+    if [ "$vsh_return" = "allowed" ]; then
+      # Run module
+      . ${moduledir}/$module
+    else
+      echo "$0: module $module denied for $user" 
+      exit 1
+    fi
+    break;;
+
+  move|move-live)
+    vsh_checkperm operations $user move
+    if [ "$vsh_return" = "allowed" ]
+    then
+      vsh_movect live $ct $otherhost
+    else
+      echo "$0: move-live denied for $user" 
+      exit 1
+    fi
+    break;;
+
+  moveall|moveall-live)
+    vsh_checkperm operations $user move
+    if [ "$vsh_return" = "allowed" ]
+    then
+      hosts=$otherhosts
+      for ct in `vzlist -Hat | awk '{print $5}'`
+      do
+        moveto=`echo $hosts | awk '{print $1}'`
+        hosts=`echo $hosts" " | sed 's/^[^ ]* //;s/ $//'`
+        [ -z "$hosts" ] && hosts=$otherhosts
+        vsh_movect live $ct $moveto
+      done
+    else
+      echo "$0: moveall-live denied for $user" 
+      exit 1
+    fi
+    break;;
+
+  move-offline)
+    vsh_checkperm operations $user move
+    if [ "$vsh_return" = "allowed" ]
+    then
+      vsh_movect offline $ct $otherhost
+    else
+      echo "$0: move-offline denied for $user" 
+      exit 1
+    fi
+    break;;
+
+  moveall-offline)
+    vsh_checkperm operations $user move
+    if [ "$vsh_return" = "allowed" ]
+    then
+      hosts=$otherhosts
+      for ct in `vzlist -Hat | awk '{print $5}'`
+      do
+        moveto=`echo $hosts | awk '{print $1}'`
+        hosts=`echo $hosts" " | sed 's/^[^ ]* //;s/ $//'`
+        [ -z "$hosts" ] && hosts=$otherhosts
+        vsh_movect offline $ct $moveto
+      done
+    else
+      echo "$0: moveall-offline denied for $user" 
+      exit 1
+    fi
+    break;;
+
+  run)
+    # Run command/start shell in container.
+    # Check if user has access to container
+    vsh_checkperm containers $user $ct
+    if [ "$vsh_return" = "allowed" ]
+    then
+
+      # Check who to run as
+      vsh_runas $user $ct
+      if [ "$vsh_return" = "root" ]; then
+        # Run as root
+        if [ "$ccmd" = "" ]
+        then
+          vzctl --quiet enter $ct
+        else
+          vzctl --quiet exec $ct $ccmd
+        fi
+      else
+        # Run as user in $vsh_return
+        if [ "$ccmd" = "" ]
+        then
+          # "enter" will give you a tty but this will
+          # also echo the 'su' command.
+          # Ugly, but it works.
+          vzctl --quiet enter $ct --exec exec su - $vsh_return
+        else
+          vzctl --quiet exec $ct su - $vsh_return -- -c \'"$ccmd"\'
+        fi
+      fi
+
+    else
+      echo "$0: permission denied for $user@$ct" 
+      exit 1
+    fi
+    break;;
+
+  start)
+    vsh_checkperm operations $user startstop
+    if [ "$vsh_return" = "allowed" ]
+    then
+      vzctl start $ct
+    else
+      echo "$0: start $ct denied for $user" 
+      exit 1
+    fi
+    break;;
+
+  stop)
+    vsh_checkperm operations $user startstop
+    if [ "$vsh_return" = "allowed" ]
+    then
+      vzctl stop $ct
+    else
+      echo "$0: stop $ct denied for $user" 
+      exit 1
+    fi
+    break;;
+
+  usage)
+    usage
+    exit
+    break;;
+esac
+

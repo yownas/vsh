@@ -1,0 +1,11 @@
+#!/bin/sh
+
+vshprefix=/opt/vzsh
+vshdexec="$vshprefix/libexec/vshd-`uname`"
+
+if [ -x "$vshdexec" ]; then
+  . $vshdexec $*
+else
+  echo "$vshdexec not found"
+  exit 1
+fi
