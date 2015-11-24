@@ -340,7 +340,7 @@ case "$action" in
     then
       keyusername="${keyusername}+${keysuffix}"
     fi
-    ssh-keygen -q -t rsa -C `echo $keyfile | sed 's#^.*/##'` -f $keyfile -N '' && (
+    ssh-keygen -q -t rsa -C `echo $keyfile | sed 's#^.*/##'` -f $keyfile && (
 
       # Unless this is the X11-key, create dist-key-file
       if [ \! "$keysuffix" = "X11" ]; then
