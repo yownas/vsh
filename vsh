@@ -340,22 +340,25 @@ case "$action" in
     then
       keyusername="${keyusername}+${keysuffix}"
     fi
-    ssh-keygen -q -t rsa -C `echo $keyfile | sed 's#^.*/##'` -f $keyfile && (
 
-      # Unless this is the X11-key, create dist-key-file
-      if [ \! "$keysuffix" = "X11" ]; then
-        cat ${keyfile}.pub | sed "s#^#command=\"/opt/vsh/bin/vshd user=${keyusername}\" #" > ${keyfile}.dist.pub
-      fi
+    comment=`echo $keyfile | sed 's#^.*/##'`
 
-      if [ "$quiet" = "false" ]; then
-        echo "$keyfile generated"
-        echo ""
-        echo "Distribute this to ~root/.ssh/authorized_keys on all vsh-hosts:"
-        echo ""
-        cat ${keyfile}.dist.pub
-        echo ""
-      fi
-    )
+    if [ "$keysuffix" = "X11" ]; then
+      ssh-keygen -q -t rsa -C "$comment" -f $keyfile -N "" || exit $?
+    else
+      ssh-keygen -q -t rsa -C "$comment" -f $keyfile || exit $?
+      cat ${keyfile}.pub | sed "s#^#command=\"/opt/vsh/bin/vshd user=${keyusername}\" #" > ${keyfile}.dist.pub
+    fi
+
+
+    if [ "$quiet" = "false" ]; then
+      echo "$keyfile generated"
+      echo ""
+      echo "Distribute this to ~root/.ssh/authorized_keys on all vsh-hosts:"
+      echo ""
+      cat ${keyfile}.dist.pub
+      echo ""
+    fi
     ;;
   hostrun)
     [ "$update" = "true" ] && vsh_updatestate
@@ -436,22 +439,40 @@ case "$action" in
     ;;
   template)
     # Check if config exists, otherwise create a new one.
-    tmp_dir="`echo $hostfile | sed 's#/[^/]*$##'`"
-    if [ \! -d "$tmp_dir" ]
+    if [ \! -f "$hostfile" ]
     then
-      mkdir -p "$tmp_dir"
+      # Create folders
+      mkdir -p `echo $hostfile | sed 's#/[^/]*$##'`
       touch $hostfile
       cat <<EOF
-$0: $tmp_dir & $hostfile created.
+$0: $tmp_dir and $hostfile created.
 
-IMPORTANT! You need to add OpenVZ hosts to this file.
+Please add vsh-hosts to this file.
 
 EOF
     fi
-    # Generate X11-keys
-    $0 -q -g X11
-    # Generate user-keys
-    $0 -g user
+
+    # Check if ctstate dir exists, otherwise create a new one.
+    tmp_dir=`echo $statefile | sed 's#/[^/]*$##'`
+    if [ \! -d "$tmp_dir" ]
+    then
+      # Create folders
+      mkdir -p $tmp_dir
+    fi
+
+    # Check if key dir exists, otherwise create a new one.
+    tmp_dir=`echo $keyfile_name | sed 's#/[^/]*$##'`
+    if [ \! -d "$tmp_dir" ]
+    then
+      # Create folders
+      mkdir -p $tmp_dir
+
+      echo "Creating default keys:"
+      # Generate X11-keys
+      $0 -q -g X11
+      # Generate user-keys
+      $0 -g user
+    fi 
     ;;
   usage)
     usage
@@ -465,7 +486,6 @@ EOF
     vshhost=$vsh_return
     if [ ! "$vshhost" = "" ]
     then
-
       # Find X11-key
       xkey=`echo $keyfile_name | sed "s/SUFFIX/X11/"`
 

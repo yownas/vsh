@@ -1,6 +1,6 @@
 #!/bin/sh
 
-vshprefix=/opt/vzsh
+vshprefix=/opt/vsh
 vshdexec="$vshprefix/libexec/vshd-`uname`"
 
 if [ -x "$vshdexec" ]; then
