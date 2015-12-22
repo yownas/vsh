@@ -10,7 +10,7 @@
 # Variables
 ############################
 
-vshprefix=/opt/vzsh
+vshprefix=/opt/vsh
 vshdini=${vshprefix}/etc/vshd.ini
 moduledir=${vshprefix}/modulesd
 
@@ -71,7 +71,7 @@ vsh_movect() {
       live=""
       ;;
     live)
-      live=`vshlist -Hat | grep " ${ct}\$" | awk '{print $3}'`
+      live=`vzlist -Hat | grep " ${ct}\$" | awk '{print $3}'`
       if [ "$live" = "running" ]; then
         live="--live"
       else
