@@ -45,7 +45,7 @@ vsh_getctname() {
 
   # Try to find container name.
   if [ "$vsh_container" = "" ]; then
-    vsh_container=`getent hosts $ct | awk '{print $2}'`
+    vsh_container=`host $ct | awk '{print $1}'`
   fi
 
   if [ "$vsh_container" = "" ]; then
