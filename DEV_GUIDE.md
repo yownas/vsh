@@ -6,6 +6,10 @@ vshd is a script that figures out which operating system it is installed on and 
 
 All scripts should be able to work on a clean minimal install. Maybe not always possible, but we could atleast try.
 
+# TODOS
+
+* Move functions and other things that can/should be reused from libexec/vshd-Linux to vshd
+
 # DQA - Developer Questions and Answers
 
 Add questions/answers below. :)
