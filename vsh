@@ -91,6 +91,7 @@ Usage: $0 [options] [action]
 Options:
 	-k <suffix>
 		Select key to use.
+		No suffix will show a list of keys.
         -p
 		Show hostname as prefix when using -o athosts
 	-u
@@ -186,6 +187,11 @@ else
       -k)
         shift;
         keysuffix=$1;
+        if [ -z "$keysuffix" ]; then
+          action=keylist
+          needconf=no
+          break
+        fi
         shift;;
       -l)
         action=list;
@@ -378,6 +384,18 @@ case "$action" in
       exit 1
     fi
     ;;
+
+  keylist)
+    echo "Keylist:"
+    echo "--------"
+    # List all dist-keys
+    ls -1 `echo $keyfile_name | sed 's/SUFFIX/*/'`.dist.pub |\
+      # Remove everything except SUFFIX (the name of the key)
+      sed 's#'`echo $keyfile_name | sed s/SUFFIX//`'##;s/\.dist\.pub$//' |\
+      # Sort
+      sort
+    ;;
+
   list)
     [ "$update" = "true" ] && vsh_updatestate
     cat $statefile
