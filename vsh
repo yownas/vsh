@@ -398,7 +398,7 @@ case "$action" in
 
   list)
     [ "$update" = "true" ] && vsh_updatestate
-    cat $statefile
+    cat $statefile | awk '{printf("%s %30s %30s %s\n", $1, $2, $3, $4)}'
     ;;
   operation)
     [ "$update" = "true" ] && vsh_updatestate

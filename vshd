@@ -13,6 +13,7 @@
 vshprefix=/opt/vsh
 vshdexec="$vshprefix/libexec/vshd-`uname`"
 vshdini=${vshprefix}/etc/vshd.ini
+vshdproxy=${vshprefix}/etc/proxy-clients
 moduledir=${vshprefix}/modulesd
 
 ############################
@@ -235,6 +236,7 @@ case "$action" in
 
   list)
     vsh_list
+    cat $vshdproxy | sed 's/^/'`hostname`'\t/;s/$/\tproxy/'
     break;;
 
   module)
@@ -314,7 +316,14 @@ case "$action" in
     then
       # Check who to run as
       vsh_runas $user $ct
-      vsh_login $vsh_return $ct "$ccmd"
+      tmp_runas=$vsh_return
+      # Proxy-client or container
+      if grep $ct $vshdproxy > /dev/null
+      then
+        ssh ${tmp_runas}@$ct "$ccmd"
+      else
+        vsh_login $tmp_runas $ct "$ccmd"
+      fi
     else
       echo "$0: permission denied for $user@$ct" 
       exit 1
