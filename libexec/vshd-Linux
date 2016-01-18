@@ -139,7 +139,7 @@ vsh_start() {
 # Stop a container
 ###
 
-vsh_stopo() {
+vsh_stop() {
   tmp_ct=$1
   vzctl stop $tmp_ct
 }
