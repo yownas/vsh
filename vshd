@@ -22,19 +22,6 @@ moduledir=${vshprefix}/modulesd
 logger "$0 ($$): $*"
 logger "$0 ($$): $SSH_ORIGINAL_COMMAND"
 
-# Find functions that match the host we are running on.
-# [Linux|FreeBSD|Solaris]
-
-if [ -x "$vshdexec" ]; then
-  . $vshdexec $*
-else
-  echo "$vshdexec not found"
-  exit 1
-fi
-
-#########################################333
-
-
 ############################
 # Functions
 ############################
@@ -163,6 +150,16 @@ vsh_parse() {
 # Default values
 action=usage
 user=nobody
+
+# Find functions that match the host we are running on.
+# [Linux|FreeBSD|Solaris]
+
+if [ -x "$vshdexec" ]; then
+  . $vshdexec $*
+else
+  echo "$vshdexec not found"
+  exit 1
+fi
 
 # Parse arguments
 vsh_parse_arg $*
