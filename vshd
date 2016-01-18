@@ -236,7 +236,7 @@ case "$action" in
 
   list)
     vsh_list
-    cat $vshdproxy | sed 's/^/'`hostname`'\t/;s/$/\tproxy/'
+    cat $vshdproxy | grep -v ^# | sed 's/^/'`hostname`'\t/;s/$/\tproxy/'
     break;;
 
   module)
