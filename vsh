@@ -180,8 +180,9 @@ else
         shift;
         ccmd=$*;
         if [ -z "$vshhost" ]; then
-          echo "ERROR: hostname needed."
-          exit 1
+          # No host given, list hosts.
+          cat $hostfile | awk '{print $1}'
+          exit 0
         fi
         break;;
       -k)
