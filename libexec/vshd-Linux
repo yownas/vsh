@@ -31,54 +31,6 @@ vsh_movect() {
 }
 
 ###
-# vsh_runas user ct
-#
-# Check which user to run as in ct
-###
-
-vsh_runas() {
-  export tmp_user=$1
-  export tmp_ct=$2
-
-  # Create search-string from ini-file
-  searchuser_str=`
-    # Get all non-coment lines
-    grep -v "^#" $vshdini | \
-
-    # Print lines under [groups]
-    awk '/^\[/{p=0}/^\[groups\]$/{p=1}{if(p)print "@"$0","}' | \
-    egrep -v '^\[|^,$' | \
-
-    # Grep for current user
-    grep "[:,]$tmp_user," | \
-
-    # Make search-string from groups and user.
-    awk -F: '{printf "^"$1"=.*$|"}END{print "^"ENVIRON["tmp_user"]".*$"}'`
-
-  vsh_return=`
-    # Search the containers for user/group return user to run as
-    grep -v "^#" $vshdini | \
-
-    # Print lines under [containers]
-    awk '/^\[/{p=0}/^\[containers\]$/{p=1}{if(p)print $0}' | \
-    egrep -v '^\[|^$' | \
-
-    # Get container or *
-    egrep "^$tmp_ct:|^\*:" | \
-
-    # Get the list of all users/groups
-    cut -d: -f2|tr , '\012' | \
-
-    # Try to find user or users groups
-    egrep $searchuser_str | \
-
-    # Only parse lines where there is a runas-user set
-    grep = | cut -d= -f2`
-
-  [ "$vsh_return" = "" ] && vsh_return="root"
-}
-
-###
 # vsh_list
 #
 # Write a list of containers/zones/jails/clients on stdout as:
