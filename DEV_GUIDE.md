@@ -8,7 +8,11 @@ All scripts should be able to work on a clean minimal install. Maybe not always 
 
 # TODOS
 
-* Move functions and other things that can/should be reused from libexec/vshd-Linux to vshd
+* Add support for physical "clients" and proxied containers.
+
+# DONES
+
+* Move functions and other things that can/should be reused from libexec/vshd-Linux to vshd / js
 
 # DQA - Developer Questions and Answers
 
