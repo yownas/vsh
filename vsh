@@ -444,10 +444,17 @@ case "$action" in
     ;;
   run)
     [ "$update" = "true" ] && vsh_updatestate
-    vsh_getctname $ct
-    ct=$vsh_return
+    # Get host of container
     vsh_gethost $ct
     vshhost=$vsh_return
+    if [ ! "$vshhost" = "" ]
+    then
+      # Try getctname to parse the name and search for host again
+      vsh_getctname $ct
+      ct=$vsh_return
+      vsh_gethost $ct
+      vshhost=$vsh_return
+    fi
     if [ ! "$vshhost" = "" ]
     then
       $SSH $vshhost run $ct $ccmd
