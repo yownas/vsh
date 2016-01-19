@@ -14,5 +14,6 @@ Server:
 * Create /opt/vsh and place vshd, etc/ and libexec/ there.
 * Put the keys from the client called *.dist.pub in ~root/.ssh/authorized_keys
 * Add your username to vshd.ini
+* Add clients you want to ssh to via vshd in etc/proxy-clients (optional)
 
 Good luck.
