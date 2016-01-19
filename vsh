@@ -476,6 +476,8 @@ $0: $tmp_dir and $hostfile created.
 Please add vsh-hosts to this file.
 
 EOF
+    else
+      echo "Hostfile exist. Skipping."
     fi
 
     # Check if ctstate dir exists, otherwise create a new one.
@@ -484,6 +486,8 @@ EOF
     then
       # Create folders
       mkdir -p $tmp_dir
+    else
+      echo "ctstate-folder exist. Skipping."
     fi
 
     # Check if key dir exists, otherwise create a new one.
@@ -498,6 +502,8 @@ EOF
       $0 -q -g X11
       # Generate user-keys
       $0 -g user
+    else
+      echo "User-keys exist. Skipping."
     fi 
     ;;
   usage)
