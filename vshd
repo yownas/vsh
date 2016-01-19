@@ -84,7 +84,11 @@ vsh_runas() {
     grep "[:,]$tmp_user," | \
 
     # Make search-string from groups and user.
-    awk -F: '{printf "^"$1"=.*$|"}END{print "^"ENVIRON["tmp_user"]".*$"}'`
+    awk -F: '{printf "^"$1"=.*$|"}END{print "^"ENVIRON["tmp_user"]"=.*$"}' | \
+
+    # Escape any +-sign used for roles
+    sed 's/+/\\\\+/'` 
+
 
   vsh_return=`
     # Search the containers for user/group return user to run as
@@ -135,13 +139,16 @@ vsh_checkperm() {
     grep "[:,]$tmp_user," | \
 
     # Make search-string from groups and user.
-    awk -F: '{printf "^"$1"$|"}END{print "^"ENVIRON["tmp_user"]"$"}'`
+    awk -F: '{printf "^"$1"$|"}END{print "^"ENVIRON["tmp_user"]"$"}' |\
+
+    # Escape any +-sign used for roles
+    sed 's/+/\\\\+/'` 
 
   # Search for user/groups if they have permisson
   # Get all non-comment lines
   grep -v "^#" $vshdini | \
 
-  # Print lines under [containers]
+  # Print lines under [$tmp_section]
   awk "/^\[/{p=0}/^\[${tmp_section}\]\$/{p=1}{if(p)print \$0}" | \
   egrep -v '^\[|^$' | \
 
