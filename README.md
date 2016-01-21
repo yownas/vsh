@@ -13,10 +13,12 @@ Server:
 
 * Create /opt/vsh and copy required files:
 
-    bin/vshd
-    etc/vshd.ini 
-    etc/proxy-clients (optional, skip this if you are not sure you actually need it)
-    libexec/vshd-*
+```
+bin/vshd
+etc/vshd.ini
+etc/proxy-clients (optional, skip this if you are not sure you actually need it)
+libexec/vshd-*
+```
 
 * Put the keys from the client(s) called *.dist.pub in ~root/.ssh/authorized_keys
 * Add your username to vshd.ini
