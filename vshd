@@ -327,7 +327,19 @@ case "$action" in
       # Proxy-client or container
       if grep $ct $vshdproxy > /dev/null
       then
-        ssh ${tmp_runas}@$ct "$ccmd"
+	# Find path/fqdn for proxied container/host
+        tmp_path=`grep "^$ct" $vshdproxy | awk '{print $2}'`
+        tmp_proto=`echo $tmp_path | sed 's/:.*$//'`
+        tmp_ct=`echo $tmp_path | sed 's/^.*://'`
+        case "$tmp_proto" in
+          ssh)
+            ssh ${tmp_runas}@$tmp_ct "$ccmd"
+            ;;
+          *)
+            echo "Unknown proto: $tmp_proto in $vshdproxy"
+            exit 1
+            ;;
+        esac
       else
         vsh_login $tmp_runas $ct "$ccmd"
       fi
