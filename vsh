@@ -71,7 +71,7 @@ vsh_updatestate() {
   [ -f "$statefile" ] && rm -f $statefile
   touch $statefile
   # Remove old files (make sure $statefile is set)
-  [ "$statefile" = "" ] && rm ${statefile}_*
+  [ "$statefile" = "" ] || rm ${statefile}_*
 
   # Parallelize all the things on all the hosts.
   for tmp_vshhost in $vsh_hosts;
