@@ -1,3 +1,6 @@
-# <alias>	<proto>:<hostname|fqdn|ip>
-# proto:=ssh
+# Enable vshd as proxy for ssh connections
+# <alias>	ssh:<hostname|fqdn|ip>
+#
+# Enable vshd as vsh-proxy (Experimental. Uses roots vsh persmissions)
+# *		vsh:
 

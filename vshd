@@ -242,8 +242,18 @@ case "$action" in
     break;;
 
   list)
+    # Containers
     vsh_list
-    cat $vshdproxy | grep -v ^# | sed 's/^/'`hostname`'\t/;s/$/\tproxy/'
+
+    # ssh-proxied clients
+    cat $vshdproxy | grep -v ^# | grep ssh: | sed 's/^/'`hostname`'\t/;s/$/\tproxy/'
+
+    # Use vsh for proxy
+    if grep vsh: $vshdproxy > /dev/null
+    then
+      /opt/vsh/bin/vsh -l | awk '{print "'`hostname`' "$2" vsh:"$3" "$4}'
+    fi
+
     break;;
 
   module)
@@ -324,25 +334,23 @@ case "$action" in
       # Check who to run as
       vsh_runas $user $ct
       tmp_runas=$vsh_return
+
       # Proxy-client or container
-      if grep $ct $vshdproxy > /dev/null
-      then
-	# Find path/fqdn for proxied container/host
-        tmp_path=`grep "^$ct" $vshdproxy | awk '{print $2}'`
-        tmp_proto=`echo $tmp_path | sed 's/:.*$//'`
-        tmp_ct=`echo $tmp_path | sed 's/^.*://'`
-        case "$tmp_proto" in
-          ssh)
-            ssh ${tmp_runas}@$tmp_ct "$ccmd"
-            ;;
-          *)
-            echo "Unknown proto: $tmp_proto in $vshdproxy"
-            exit 1
-            ;;
-        esac
-      else
-        vsh_login $tmp_runas $ct "$ccmd"
-      fi
+      tmp_proto=`echo $ct | sed 's/^\([^:]*\):.*/\1/'`
+      tmp_ct=`echo $ct | sed 's/^[^:]*:\(.*\)/\1/'`
+      case "$tmp_proto" in
+        ssh)
+          ssh ${tmp_runas}@$tmp_ct "$ccmd"
+          ;;
+        vsh)
+          /opt/vsh/bin/vsh $tmp_ct
+          ;;
+        *)
+          # No proto, use vsh_login to enter local(?) container
+          vsh_login $tmp_runas $tmp_ct "$ccmd"
+          ;;
+      esac
+
     else
       echo "$0: permission denied for $user@$ct" 
       exit 1
