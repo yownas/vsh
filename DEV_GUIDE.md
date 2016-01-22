@@ -8,10 +8,12 @@ All scripts should be able to work on a clean minimal install. Maybe not always 
 
 # TODOS
 
-* Add support for physical "clients" and proxied containers.
+* Support for Solaris Zones and FreeBSD Jails
+* Better documentation with example and use-cases
 
 # DONES
 
+* Add support for physical "clients" and proxied containers.
 * Move functions and other things that can/should be reused from libexec/vshd-Linux to vshd / js
 
 # DQA - Developer Questions and Answers
