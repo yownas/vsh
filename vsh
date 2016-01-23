@@ -41,7 +41,7 @@ vsh_athosts() {
 vsh_getctname() {
   ct=$1
   # fqdn/cid?
-  vsh_container=`grep "\ $ct\ " $statefile | awk '{print $2}'`
+  vsh_container=`grep " $ct " $statefile | awk '{print $2}'`
 
   # Try to find container name.
   if [ "$vsh_container" = "" ]; then
@@ -60,24 +60,9 @@ vsh_getctname() {
 # Get host for container
 vsh_gethost() {
   ct=$1
-  vsh_return=`cat $statefile | awk '{print $2" "$1" "$3}' | grep "^$ct " | head -1 | cut -d" " -f2`
-  # If container isn't found, try with path
-  if [ "$vsh_return" = "" ]
-  then
-    vsh_return=`cat $statefile | awk '{print $2" "$1" "$3}' | grep " $ct$" | head -1 | cut -d" " -f2`
-  fi
-}
-
-# vsh_getctpath ct
-# Get path for container
-vsh_getctpath() {
-  tmp_ct=$1
-  vsh_return=`cat $statefile | awk '{print $2" "$1" "$3}' | grep "^$tmp_ct " | head -1 | cut -d" " -f3`
-  # If it isn't found as hostname, try as path
-  if [ "$vsh_return" = "" ]
-  then
-    vsh_return=`cat $statefile | awk '{print $2" "$1" "$3}' | grep " $ct$" | head -1 | cut -d" " -f3`
-  fi
+  vsh_getctname $ct
+  cid=$vsh_return
+  vsh_return=`cat $statefile | awk '{print $2" "$1" "$3}' | grep "^$cid " | cut -d" " -f2`
 }
 
 # vsh_updatestate
@@ -85,8 +70,6 @@ vsh_getctpath() {
 vsh_updatestate() {
   [ -f "$statefile" ] && rm -f $statefile
   touch $statefile
-  # Remove old files (make sure $statefile is set)
-  [ "$statefile" = "" ] || rm ${statefile}_*
 
   # Parallelize all the things on all the hosts.
   for tmp_vshhost in $vsh_hosts;
@@ -323,7 +306,7 @@ fi
 
 # Set ssh-command to use now when we know which key to use.
 #SSH="ssh -l root -t -o PasswordAuthentication=no -o ConnectTimeout=3 -o LogLevel=QUIET -i $keyfile"
-SSH="ssh -l root -t -o PasswordAuthentication=no -o ConnectTimeout=3 -i $keyfile"
+SSH="ssh -l root -t -o PasswordAuthentication=no -o ConnectTimeout=4 -i $keyfile"
 
 if [ "$needconf" = "yes" ]
 then
@@ -464,7 +447,7 @@ case "$action" in
     # Get host of container
     vsh_gethost $ct
     vshhost=$vsh_return
-    if [ "$vshhost" = "" ]
+    if [ ! "$vshhost" = "" ]
     then
       # Try getctname to parse the name and search for host again
       vsh_getctname $ct
@@ -474,10 +457,7 @@ case "$action" in
     fi
     if [ ! "$vshhost" = "" ]
     then
-      vsh_getctpath $ct
-      tmp_path=$vsh_return
-
-      $SSH $vshhost run $tmp_path $ccmd
+      $SSH $vshhost run $ct $ccmd
     else
       echo "run: Container host not found."
       exit 1
@@ -491,7 +471,7 @@ case "$action" in
       mkdir -p `echo $hostfile | sed 's#/[^/]*$##'`
       touch $hostfile
       cat <<EOF
-$0: $tmp_dir and $hostfile created.
+$0: $hostfile created.
 
 Please add vsh-hosts to this file.
 
@@ -538,17 +518,6 @@ EOF
     vshhost=$vsh_return
     if [ ! "$vshhost" = "" ]
     then
-      # Try getctname to parse the name and search for host again
-      vsh_getctname $ct
-      ct=$vsh_return
-      vsh_gethost $ct
-      vshhost=$vsh_return
-    fi
-    if [ ! "$vshhost" = "" ]
-    then
-      vsh_getctpath $ct
-      tmp_path=$vsh_return
-
       # Find X11-key
       xkey=`echo $keyfile_name | sed "s/SUFFIX/X11/"`
 
@@ -561,13 +530,13 @@ EOF
       fi
 
       # Connect and find out paths and remote username.
-      gecos=`$SSH $vshhost run $tmp_path 'getent passwd \`whoami\`'`
+      gecos=`$SSH $vshhost run $ct 'getent passwd \`whoami\`'`
 
       remote_user=`echo $gecos|cut -d: -f 1`
       remote_home=`echo $gecos|cut -d: -f 6`
 
       # Create folder and copy temporary host-key
-      cat ${xkey} | $SSH -o LogLevel=QUIET $vshhost run $tmp_path "(mkdir ${remote_home}/.vsh 2>/dev/null);cat > ${remote_home}/.vsh/x11.tmp$$"
+      cat ${xkey} | $SSH -o LogLevel=QUIET $vshhost run $ct "(mkdir ${remote_home}/.vsh 2>/dev/null);cat > ${remote_home}/.vsh/x11.tmp$$"
 
       # Write X11-keys, start remote sshd and connect using a dummy name.
       ssh -i ${xkey} -XY -o LogLevel=QUIET -o StrictHostKeyChecking=no -o VerifyHostKeyDNS=no -o EnableSSHKeysign=no -o HostbasedAuthentication=yes -o UserKnownHostsFile=/home/yes/.vsh/host-yes-X11 -o "ProxyCommand $SSH $vshhost run $ct \"chmod 700 ${remote_home}/.vsh;(echo `tr -d '\012' < ${xkey}.pub` > ${remote_home}/.vsh/x11.tmp$$.pub);chmod 600 ${remote_home}/.vsh/x11.tmp$$*;/usr/sbin/sshd -i -o HostbasedAuthentication=yes -o HostKey=${remote_home}/.vsh/x11.tmp$$ -o AuthorizedKeysFile=${remote_home}/.vsh/x11.tmp$$.pub -o UsePrivilegeSeparation=no -o UsePAM=no;rm ${remote_home}/.vsh/x11.tmp$$.pub ${remote_home}/.vsh/x11.tmp$$\"" -l $remote_user vsh-x11-connection $ccmd
