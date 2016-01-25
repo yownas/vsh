@@ -1,8 +1,8 @@
-# Installation
+# Installation #
 
 All the examples below use the default installation paths. You are free to change these.
 
-## Client
+## Client ##
 
 First you need to place the vsh script somewhere you can run it. If you are a single user on a single machine you can place it in ~/bin/ or if it is a shared machine, anywhere where all admins can access it like /usr/bin or any other folder in $PATH.
 
@@ -25,9 +25,9 @@ Distribute this to ~root/.ssh/authorized_keys on all vsh-hosts:
 command="/opt/vsh/bin/vshd user=user" ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDH7rWth7g7mlpV5BxDgry8Zj/WSg74HcsaqMCAlcfYqy+p7b6rv9KYOmfKKhArExHEnLhLs1tCmTMyAxnk08Aq57mUzUu8VnUiy0DZm6G65SnzucMkN9OWtqRp8f4hTNXLKm1WYUWc70HuxRF7kQxE6eTpCV8EJppKcRWNB08ICmZU+u1ZGyemVVkwDCTqNqg20XIQNyCGKOcBnu2Iiu2oHu9RBz/Dy7R1/61EQLQ8z5MEB+dYg4MJb+rZ3/TYhoV/2W/yW2P6bLW2Y10Jl2kLWjyPDpr5Ru6hNFk5vKNmw3dbhe3w1OhaD7sMgGX7Ae+Mm39r9HhkTOpACy4Xkgp1 vsh-user-user
 ```
 
-If you feel that you need more roles, create more keys with vsh -g <role>.
+If you feel that you need more roles, create more keys with `vsh -g <role>`.
 
-Add hosts to ~/.vsh/hosts
+Add hosts to `~/.vsh/hosts`:
 
 ```
 # hosts file
@@ -38,22 +38,52 @@ vsh-host2
 
 Distribute keys with the suffix .dist.pub to the vsh-server (see below). If this is to be used in an environment with several admins you might want to use some kind of script that gather keys, check them and creates a authorized_keys file to be distributed by cfengine or puppet to your vsh-servers. 
 
-## Server
+## Server ##
 
-To set up a vshd create a couple of folders.
+To set up a vshd, download vsh and create some folders.
 
 ```
-/opt/vsh/
-/opt/vsh/bin/
-/opt/vsh/etc/
-/opt/vsh/libexec/
+mkdir -p ~/sandbox
+cd ~/sandbox
+git clone git://github.com/yownas/vsh
+mkdir -p /opt/vsh/{bin,etc,libexec}
 ```
 
-* Copy the executable script vshd to /opt/vsh/bin/
-* Copy the libexec-files to /opt/vsh/libexec/.
-* Create /opt/vsh/etc/vshd.ini and set up permissions
+Install `vshd` script and dependencies:
 
-### vshd.ini
+```
+cd ~/sandbox/vsh
+cp -p vshd /opt/vsh/bin/
+cp -p libexec/* /opt/vsh/libexec
+``` 
+
+Create config file. **TODO:** Include sampe ini file in 
+vsh distribution.
+
+```
+cat <<EOF >/opt/vsh/etc/vshd.ini
+# Groups.
+# Format: group:user1[[,user2],user3]
+[groups]
+
+# List of containers. Need to be fqdn of container or * (any)
+# Format: fqdn:user1|@group1[,user2|@group2]
+[containers]
+
+# vsh hosts. fqdn or * (any)
+# Format: fqdn:user1|@group1[,user2|@group2]
+[hosts]
+
+# Operations permissions
+[operations]
+
+# Module persmissions
+[modules]
+EOF
+```
+
+
+### vshd.ini ###
 
 The example below we have three users, Alice, Bob and Eve.
 
@@ -65,7 +95,8 @@ Under [hosts] you can use * or a hostname. Typically you would use * but if you 
 
 The user Eve only has access to the container syslog.domain and will get logged in as the user "logmaster" instead of root.
 
-Example /opt/vsh/etc/vshd.ini:
+Example `/opt/vsh/etc/vshd.ini`:
+
 ```
 # Groups.
 # Format: group:user1[[,user2],user3]
@@ -93,7 +124,8 @@ startstop:@admins
 [modules]
 *:@wheel
 ```
-### proxy-clients
+
+### proxy-clients ###
 
 This feature is experimental!
 
@@ -114,13 +146,14 @@ gw		ssh:192.168.0.1
 *	vsh:
 ```
 
-### User keys
+### User keys ###
 
 To allow users to run vshd you need to add their vsh-keys to ~root/.ssh/authorized_keys. Make sure that all the keys has a proper command-option at the beginning and that the path to vshd is correct and that "user=<username>" is set to the user you expect.
 
 Example below has one user with two keys, one with the default user-role and the second with the admin-role.
 
-Example: ~root/.ssh/authorized_keys:
+Example: `~root/.ssh/authorized_keys`:
+
 ```
 command="/opt/vsh/bin/vshd user=alice" ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDP59ep36DGG6A7UpGc4/YG/IbfwcCHsTLy5bNafAAsjBB09zk
 BCArA8U7XCLbtY4fEpEFzPqhWBh8xVYC0Uh35rR/KTMTMKFacRul7t7iGiBvVb/bDOgOBqrSwgB0f2dYe8s0BEGCf3i3yJ1CP2TavoXbtaGCE8ionP7+6kAroSo1
