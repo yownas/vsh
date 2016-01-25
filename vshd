@@ -76,9 +76,9 @@ vsh_runas() {
     # Get all non-coment lines
     grep -v "^#" $vshdini | \
 
-    # Print lines under [groups]
+    # Print lines under [groups], remove white-space
     awk '/^\[/{p=0}/^\[groups\]$/{p=1}{if(p)print "@"$0","}' | \
-    egrep -v '^\[|^,$' | \
+    egrep -v '^\[|^,$' | tr -d ' ' | \
 
     # Grep for current user
     grep "[:,]$tmp_user," | \
@@ -94,9 +94,9 @@ vsh_runas() {
     # Search the containers for user/group return user to run as
     grep -v "^#" $vshdini | \
 
-    # Print lines under [containers]
+    # Print lines under [containers], remove white-space
     awk '/^\[/{p=0}/^\[containers\]$/{p=1}{if(p)print $0}' | \
-    egrep -v '^\[|^$' | \
+    egrep -v '^\[|^$' | tr -d ' ' | \
 
     # Get container or *
     egrep "^$tmp_ct:|^\*:" | \
@@ -131,9 +131,9 @@ vsh_checkperm() {
     # Get all non-comment lines
     grep -v "^#" $vshdini | \
 
-    # Print lines under [groups]
+    # Print lines under [groups], remove white-space
     awk '/^\[/{p=0}/^\[groups\]$/{p=1}{if(p)print "@"$0","}' | \
-    egrep -v '^\[|^,$' | \
+    egrep -v '^\[|^,$' | tr -d ' ' | \
 
     # Grep for current user
     grep "[:,]$tmp_user," | \
@@ -148,9 +148,9 @@ vsh_checkperm() {
   # Get all non-comment lines
   grep -v "^#" $vshdini | \
 
-  # Print lines under [$tmp_section]
+  # Print lines under [$tmp_section], remove white-space
   awk "/^\[/{p=0}/^\[${tmp_section}\]\$/{p=1}{if(p)print \$0}" | \
-  egrep -v '^\[|^$' | \
+  egrep -v '^\[|^$' | tr -d ' ' | \
 
   # Get container or * and print user/groups
   egrep "^$tmp_item:|^\*:" | \
