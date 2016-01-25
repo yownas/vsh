@@ -581,9 +581,9 @@ EOF
       vshhost=`echo $vshhost | sed 's/^\([^@]*\)$/root@\1/'`
 
       # Start remote sshd and connect using a dummy name.
-      ssh -v -i ${xkey} -XY -o StrictHostKeyChecking=no \
+      ssh -i ${xkey} -XY -o StrictHostKeyChecking=no \
         -o VerifyHostKeyDNS=no -o EnableSSHKeysign=no \
-        -o HostbasedAuthentication=yes \
+        -o UserKnownHostsFile=/dev/null \
         -o ProxyCommand="$SSH $vshhost run $ct \"/usr/sbin/sshd -i \
           -o HostKey=${remote_home}/.vsh/x11.tmp$$ \
           -o AuthorizedKeysFile=${remote_home}/.vsh/x11.tmp$$.pub \
