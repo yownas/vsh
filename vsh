@@ -69,9 +69,20 @@ vsh_gethost() {
   vsh_return=`cat $statefile | awk '{print $2" "$1" "$3}' | grep "^$cid " | cut -d" " -f2`
 }
 
+# vsh_getctpath ct
+# Get path for container
+vsh_getctpath() {
+  tmp_ct=$1
+  vsh_return=`cat $statefile | awk '{print $2" "$1" "$3}' | grep "^$tmp_ct " | head -1 | cut -d" " -f3`
+  # If it isn't found as hostname, try as path
+  if [ "$vsh_return" = "" ]
+  then
+    vsh_return=`cat $statefile | awk '{print $2" "$1" "$3}' | grep " $ct$" | head -1 | cut -d" " -f3`
+  fi
+}
+
 # vsh_ssh [user@]host cmd
 # ssh to vshd-hosts
-
 vsh_ssh() {
   tmp_vsh_sshhost=$1
   shift
@@ -468,7 +479,7 @@ case "$action" in
     # Get host of container
     vsh_gethost $ct
     vshhost=$vsh_return
-    if [ ! "$vshhost" = "" ]
+    if [ "$vshhost" = "" ]
     then
       # Try getctname to parse the name and search for host again
       vsh_getctname $ct
@@ -478,7 +489,18 @@ case "$action" in
     fi
     if [ ! "$vshhost" = "" ]
     then
-      vsh_ssh $vshhost run $ct $ccmd
+      vsh_getctpath $ct
+      tmp_path=$vsh_return
+      if [ "$tmp_path" = "" ]
+      then
+        vsh_getctname $ct
+        ct=$vsh_return
+        vsh_getctpath $ct
+        tmp_path=$vsh_return
+      fi
+      
+      # Hopefully we have a host and path here...
+      vsh_ssh $vshhost run $tmp_path $ccmd
     else
       echo "run: Container host not found."
       exit 1

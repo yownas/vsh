@@ -15,6 +15,7 @@ vshdexec="$vshprefix/libexec/vshd-`uname`"
 vshdini=${vshprefix}/etc/vshd.ini
 vshdproxy=${vshprefix}/etc/proxy-clients
 moduledir=${vshprefix}/modulesd
+VSH_BIN=${vshprefix}/bin/vsh
 
 ############################
 # Logging
@@ -246,12 +247,12 @@ case "$action" in
     vsh_list
 
     # ssh-proxied clients
-    cat $vshdproxy | grep -v ^# | grep ssh: | sed 's/^/'`hostname`'\t/;s/$/\tproxy/'
+    cat $vshdproxy | grep -v ^# | grep ssh: | sed 's/^/'`hostname`' /;s/$/ proxy/'
 
     # Use vsh for proxy
     if grep vsh: $vshdproxy > /dev/null
     then
-      /opt/vsh/bin/vsh -l | awk '{print "'`hostname`' "$2" vsh:"$3" "$4}'
+      $VSH_BIN -l | awk '{print "'`hostname`' "$2" vsh:"$3" "$4}'
     fi
 
     break;;
@@ -335,15 +336,25 @@ case "$action" in
       vsh_runas $user $ct
       tmp_runas=$vsh_return
 
+      # Check if client is in the proxy-client-list
+      # Search ssh-aliases
+      tmp_path=`cat $vshdproxy | awk '/^'${ct}'[ \t\f\n\r\v]/{print $2}'`
+      if [ ! "$tmp_path" = "" ]
+      then
+	# Use proxy-path instead of container name
+        ct=$tmp_path
+      fi
+
       # Proxy-client or container
       tmp_proto=`echo $ct | sed 's/^\([^:]*\):.*/\1/'`
       tmp_ct=`echo $ct | sed 's/^[^:]*:\(.*\)/\1/'`
+
       case "$tmp_proto" in
         ssh)
           ssh ${tmp_runas}@$tmp_ct "$ccmd"
           ;;
         vsh)
-          /opt/vsh/bin/vsh $tmp_ct
+          $VSH_BIN $tmp_ct
           ;;
         *)
           # No proto, use vsh_login to enter local(?) container
