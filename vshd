@@ -62,7 +62,6 @@ From vsh:
 EOF
 }
 
-
 ###
 # vsh_runas user ct
 #
@@ -329,6 +328,11 @@ case "$action" in
   run)
     # Run command/start shell in container.
     # Check if user has access to container
+    vsh_cttoname $ct
+    if [ ! "$vsh_return" = "" ]
+    then
+      ct=$vsh_return
+    fi
     vsh_checkperm containers $user $ct
     if [ "$vsh_return" = "allowed" ]
     then

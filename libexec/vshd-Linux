@@ -3,6 +3,18 @@
 #
 
 ###
+# vsh_cttoname ct
+#
+# Try to look up the name of ct
+###
+
+vsh_cttoname() {
+  tmp_ct=$1
+
+  vsh_return=`vzlist -Hao hostname $tmp_ct` > /dev/null
+}
+
+###
 # vsh_movect live|offline <ct> <host>
 #
 # Try to move a container to another host
