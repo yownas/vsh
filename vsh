@@ -98,7 +98,7 @@ vsh_ssh() {
 # vsh_updatestate
 # Update containers and their state from all hosts
 vsh_updatestate() {
-  [ -f "$statefile" ] && rm -f $statefile
+  rm -f $statefile ${statefile}_*
   touch $statefile
 
   # Parallelize all the things on all the hosts.
