@@ -174,7 +174,7 @@ EOF
 # Defaults
 action=run
 update=true
-[ "$VZSHUPDATE" = "0" -o "$VZSH_UPDATE" = "false" ] && update=false
+[ "$VSHUPDATE" = "0" -o "$VSH_UPDATE" = "false" ] && update=false
 prefix=false
 quiet=false
 # If needconf is set to yes we do need config-files.
@@ -305,7 +305,7 @@ else
 fi
 
 # Set key suffix from ENV or use default if none is given.
-[ -z "$keysuffix" ] && keysuffix=$VZSH_KEY 
+[ -z "$keysuffix" ] && keysuffix=$VSH_KEY 
 [ -z "$keysuffix" ] && keysuffix=user 
 keyfile=`echo $keyfile_name | sed "s/SUFFIX/${keysuffix}/"`
 
