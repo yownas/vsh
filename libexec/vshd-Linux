@@ -23,7 +23,7 @@ vsh_cttoname() {
       ;;
     vsh)
       # Use 'vsh -l' to get cointainer name for vsh-proxied clients
-      $VSH_BIN -l | awk '{print $3"="$2}' | awk -F= '/^'${tmp_ct}'=/{print $2}'
+      $VSH_BIN -lll | awk '{print $3"="$2}' | awk -F= '/^'${tmp_ct}'=/{print $2}'
       ;;
     *)
       # No proto, assume it is an OpenVZ container

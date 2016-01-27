@@ -254,7 +254,7 @@ case "$action" in
     # Use vsh for proxy
     if grep vsh: $vshdproxy > /dev/null
     then
-      $VSH_BIN -l | awk '{print "'`hostname`' "$2" vsh:"$3" "$4}'
+      $VSH_BIN -lll | awk '{print "'`hostname`' "$2" vsh:"$3" "$4}'
     fi
 
     break;;
