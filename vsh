@@ -136,7 +136,10 @@ Actions:
 	-x <container> [<command>]
 		Run command/shell in container with X11 forwarding.
 	-l
+	-ll
+	-lll
 		Show list of all containers on all hosts.
+		List, list long, list longer
 	-o move <container> <host>
 	-o move-offline <container> <host>
 		Move container to host.
@@ -225,8 +228,13 @@ else
           break
         fi
         shift;;
-      -l)
+      -l|-ll|-lll)
         action=list;
+        case "$1" in
+          -l) ccmd="1";;
+          -ll) ccmd="2";;
+          -lll) ccmd="3";;
+        esac
         shift;;
       -M)
         action=module;
@@ -431,7 +439,17 @@ case "$action" in
 
   list)
     [ "$update" = "true" ] && vsh_updatestate
-    cat $statefile | awk '{printf("%s %30s %30s %s\n", $1, $2, $3, $4)}'
+    case "$ccmd" in
+      3)
+        cat $statefile | awk '{printf("%s %30s %30s %s\n", $1, $2, $3, $4)}'
+        ;;
+      2)
+        cat $statefile | awk '{printf("%s@%s\n", $2, $1)}'
+        ;;
+      1|*)
+        cat $statefile | awk '{printf("%s\n", $2)}'
+        ;;
+    esac
     ;;
   operation)
     [ "$update" = "true" ] && vsh_updatestate
