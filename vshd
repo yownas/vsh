@@ -361,7 +361,9 @@ case "$action" in
           ssh ${tmp_runas}@$tmp_ct "$ccmd"
           ;;
         vsh)
-          $VSH_BIN $tmp_ct
+          # vsh to the container, vsh_cttoname should have updated
+          # ctstate so we can skip updating it (-u) now.
+          $VSH_BIN -u $tmp_ct
           ;;
         *)
           # No proto, use vsh_login to enter local(?) container
