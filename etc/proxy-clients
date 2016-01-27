@@ -2,5 +2,8 @@
 # <alias>	ssh:<hostname|fqdn|ip>
 #
 # Enable vshd as vsh-proxy (Experimental. Uses roots vsh persmissions)
+# The * is unused in this release. Will proxy ALL vsh-clients that
+# the user that runs vshd has access to. User-key needs to be setup
+# without password.
 # *		vsh:
 
