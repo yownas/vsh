@@ -11,7 +11,25 @@
 vsh_cttoname() {
   tmp_ct=$1
 
-  vsh_return=`vzlist -Hao hostname $tmp_ct` > /dev/null
+  vsh_return=""
+
+  tmp_proto=`echo $ct | sed 's/^\([^:]*\):.*/\1/'`
+  tmp_ct=`echo $ct | sed 's/^[^:]*:\(.*\)/\1/'`
+
+  case "$tmp_proto" in
+    ssh)
+      # Return alias for ssh-path
+      vsh_return=`grep "${ct}$" $vshdproxy | awk '{print $1}' | head -1`  
+      ;;
+    vsh)
+      # Use 'vsh -l' to get cointainer name for vsh-proxied clients
+      $VSH_BIN -l | awk '{print $3"="$2}' | awk -F= '/^'${tmp_ct}'=/{print $2}'
+      ;;
+    *)
+      # No proto, assume it is an OpenVZ container
+      vsh_return=`vzlist -Hao hostname $tmp_ct` > /dev/null
+      ;;
+   esac
 }
 
 ###
