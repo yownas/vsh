@@ -10,7 +10,7 @@ To set up a template and create your first user key simply run: vsh -t
 
 ```
 # vsh -t
-/home/user/bin/vsh: /home/user/.vsh/hosts created.
+/home/user/.vsh/hosts created.
 
 Please add vsh-hosts to this file.
 
