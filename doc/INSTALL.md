@@ -131,7 +131,7 @@ This feature is experimental!
 
 If you want to be able to ssh to hosts as root via vshd you can add them to /opt/vsh/etc/proxy-clients.
 
-You can also let vshd act as a proxy for vsh. Add "* vsh:" to proxy-clients and set up vsh as usual for the user running vshd (typically root).
+You can also let vshd act as a proxy for vsh. Add "* vsh:" to proxy-clients and set up vsh as usual for the user running vshd (typically root). Also make sure that you have the vsh-script in `/opt/vsh/bin/`.
 
 This can be useful if you have hosts on a NATed network and only have one public IP on the outside. (Maybe. As I stated before, this is experimental and added mostly because "it was possible".)
 
@@ -163,4 +163,23 @@ HFeZNM/+CUGcps/ZBTnoqx6ncw9lF4lqnv1NT+mII940yqiEuLrqH01vReyWclWUJFIKDuX4q7XVFPkp
 x9+PffEqZ6/5Jfzm7TT9/IuKXOPDRWpivJYxrfQYvW92mIJaAm5 vsh-alice-admin
 ```
 
-If you've come this far you should now be able to run vsh -l and see a list of containers and proxied hosts. :)
+If you've come this far you should now be able to run vsh -l and see a list of containers (and proxied hosts). :)
+
+### User key distribution ###
+
+The security of vsh is based on how it uses ssh-keys for authentication. When you distribute the dist.pub-keys from users you MUST check a couple of things.
+
+* The name after user= in `command="/opt/vsh/bin/vshd user=alice"` MUST be the same as the username that owns the file.
+* The command in `command="/opt/vsh/bin/vshd user=alice"` MUST be `/opt/vsh/bin/vshd` unless you set another path.
+* The command and argument in `command="/opt/vsh/bin/vshd user=alice"` MUST not be anything other than the path to vshd and the `user=<username>` argument.
+* The file MUST be owned by the correct user and only writable by that user. Not group or world writable.
+* The comment should also contain the name, but it is only a comment and not really needed.
+* Do not add users to hosts that they do not need access to or that contain containers that they are not allowed to access.
+
+If you have several users you can check if any of the keys are the same. They shouldn't be and could mean that someone is trying to give another user his/her privileges.
+
+Users should be encouraged to create new keys and change periodically instead of just setting a new password on the old keys.
+
+### Security ###
+
+vsh and vshd are just shell-scripts, there is no guarantee that noone won't be able to get around the privileges setup in `vshd.ini`. Assume that anyone who has a vsh-key added to a host might gain admin access. To keep hosts and containers safe only add administrators you trust to your hosts and let less trustworthy admins access only a sub-set of hosts.
