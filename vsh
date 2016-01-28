@@ -552,7 +552,7 @@ case "$action" in
       mkdir -p `echo $hostfile | sed 's#/[^/]*$##'`
       touch $hostfile
       cat <<EOF
-$0: $hostfile created.
+$hostfile created.
 
 Please add vsh-hosts to this file.
 
