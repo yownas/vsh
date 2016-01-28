@@ -120,6 +120,8 @@ VZ shell
 Usage: $0 [options] [action]
 
 Options:
+	-a
+		Add used key to ssh-agent if possible.
 	-k <suffix>
 		Select key to use.
 		No suffix will show a list of keys.
@@ -176,6 +178,7 @@ EOF
 
 # Defaults
 action=run
+addkey=false
 update=true
 [ "$VSHUPDATE" = "0" -o "$VSH_UPDATE" = "false" ] && update=false
 prefix=false
@@ -190,6 +193,10 @@ then
 else
   while [ \! -z "$*" ]; do
     case "$1" in
+      -a)
+        addkey="true";
+        shift;
+        ;;
       -g)
         action=genkeys;
         shift;
@@ -326,6 +333,11 @@ then
   if [ "$vsh_result" = "0" -o "$vsh_result" = "1" ]
   then
     vsh_tmpagent=no
+    # Add key to external ssh-agent
+    if [ "$addkey" = "true" ]
+    then
+      ssh-add $keyfile 2> /dev/null
+    fi
   else
     vsh_tmpagent=yes
     eval `ssh-agent -s` > /dev/null
@@ -365,6 +377,14 @@ then
     echo ""
     echo "ERROR: $keyfile or ${keyfile}.pub missing or empty."
     echo "Generate key-pair with: $0 -g"
+    exit 1
+  fi
+
+  if [ "$action" = "run" -a "$ct" = "" ]
+  then
+    usage
+    echo ""
+    echo "ERROR: container name needed."
     exit 1
   fi
 fi
