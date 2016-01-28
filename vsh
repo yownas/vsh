@@ -336,6 +336,7 @@ then
     # Add key to external ssh-agent
     if [ "$addkey" = "true" ]
     then
+      # FIXME: Maybe we should have a timeout here?
       ssh-add $keyfile 2> /dev/null
     fi
   else
@@ -371,6 +372,7 @@ then
     exit 1
   fi
 
+  # Make sure keyfiles exist
   if [ \! -s "$keyfile" -o \! -s "${keyfile}.pub" ]
   then
     usage
@@ -380,12 +382,24 @@ then
     exit 1
   fi
 
-  if [ "$action" = "run" -a "$ct" = "" ]
+  # Do some checks for -r
+  if [ "$action" = "run" ]
   then
-    usage
-    echo ""
-    echo "ERROR: container name needed."
-    exit 1
+    # Check that we have a container name
+    if [ "$ct" = "" ]
+    then
+      usage
+      echo ""
+      echo "ERROR: container name needed."
+      exit 1
+    fi
+
+    # If container is in hostlist, do a hostrun instead of run
+    if (cat $hostfile | awk '{print $1}' | grep "^${ct}$" > /dev/null)
+    then
+        action=hostrun
+        vshhost=$ct;
+    fi
   fi
 fi
 
