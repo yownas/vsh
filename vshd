@@ -344,12 +344,15 @@ case "$action" in
       tmp_runas=$vsh_return
 
       # Check if client is in the proxy-client-list
-      # Search ssh-aliases
-      tmp_path=`cat $vshdproxy | awk '/^'${ct}'[ \t\f\n\r\v]/{print $2}'`
-      if [ ! "$tmp_path" = "" ]
+      # Search ssh-aliases (if we have a proxy-list)
+      if [ -f "$vshdproxy" ]
       then
-	# Use proxy-path instead of container name
-        ct=$tmp_path
+        tmp_path=`cat $vshdproxy | awk '/^'${ct}'[ \t\f\n\r\v]/{print $2}'`
+        if [ ! "$tmp_path" = "" ]
+        then
+          # Use proxy-path instead of container name
+          ct=$tmp_path
+        fi
       fi
 
       # Proxy-client or container
