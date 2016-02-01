@@ -4,18 +4,24 @@
 # Variables
 ############################
 
-hostfile=~/.vsh/hosts
+modules=~/.vsh/modules
 keyfile_name=~/.vsh/keys/vsh-`whoami`-SUFFIX
 statefile=~/.vsh/var/ctstate
-modules=~/.vsh/modules
 
-SSH="ssh -t -o PasswordAuthentication=no -o ConnectTimeout=4"
+# Check if we should use VSH_HOSTFILE or set one ourselves.
+if [ "$VSH_HOSTFILE" = "" ]
+then
+  hostfile=~/.vsh/hosts
+else
+  hostfile=$VSH_HOSTFILE
+fi
 
 ############################
 # Variables (Do not edit)
 ############################
 
 vsh_hosts=`cat $hostfile 2> /dev/null| awk '/^[^#]/{print $1}' | tr '\012' ' ' `
+SSH="ssh -t -o PasswordAuthentication=no -o ConnectTimeout=4"
 
 ############################
 # Functions
@@ -180,7 +186,7 @@ EOF
 action=run
 addkey=false
 update=true
-[ "$VSHUPDATE" = "0" -o "$VSH_UPDATE" = "false" ] && update=false
+[ "$VSH_UPDATE" = "0" -o "$VSH_UPDATE" = "false" ] && update=false
 prefix=false
 quiet=false
 # If needconf is set to yes we do need config-files.
