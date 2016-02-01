@@ -19,8 +19,11 @@ Actions:
 		Run command/shell in container.
 	-x <container> [<command>]
 		Run command/shell in container with X11 forwarding.
-	-l
-		Show list of all containers on all hosts.
+        -l
+        -ll
+        -lll
+                Show list of all containers on all hosts.
+                List, list long, list longer
 	-o move <container> <host>
 	-o move-offline <container> <host>
 		Move container to host.
@@ -42,6 +45,9 @@ Actions:
                 update vshd.ini to give you persmissions.
 	-t
 		Create folder and empty hostfile-template, implies -g.
+        -d
+                Copy your public keys to a shared folder for distribution.
+
 	-h <container> [<command>]
 		Run command/shell on host of container.
 	-H <host> [<command>]
@@ -115,4 +121,18 @@ For every command the script execute it will run ssh to all hosts in your ~/.vsh
     -q
 
 Does some things a bit less verbose.
+
+# Environment variables #
+
+`VSH_DISTKEYFOLDER`
+
+Folder for a shared folder where users can put their .dist.pub-files for distribution with `vsh -d`
+
+`VSH_HOSTFILE`
+
+Overrides the hostfile-variable in vsh if you want to point to another (shared) file.
+
+`VSH_UPDATE`
+
+Set this to 0 or false if you want vsh to NOT do an update. Same things as `vsh -u`
 
