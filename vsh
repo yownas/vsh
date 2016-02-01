@@ -232,7 +232,7 @@ else
         ccmd=$*;
         if [ -z "$vshhost" ]; then
           # No host given, list hosts.
-          cat $hostfile | awk '{print $1}'
+          cat $hostfile | grep -v '^#' | awk '{print $1}'
           exit 0
         fi
         break;;
