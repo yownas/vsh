@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #
 # This script is supposed to be run by the sshd in the vsh-host
@@ -239,7 +239,7 @@ case "$action" in
       echo "$0: permission denied for $user@localhost" 
       exit 1
     fi
-    break;;
+    ;;
 
   list)
     # Containers
@@ -257,7 +257,7 @@ case "$action" in
       $VSH_BIN -lll | awk '{print "'`hostname`' "$2" vsh:"$3" "$4}'
     fi
 
-    break;;
+    ;;
 
   module)
     vsh_checkperm modules $user $module
@@ -268,7 +268,7 @@ case "$action" in
       echo "$0: module $module denied for $user" 
       exit 1
     fi
-    break;;
+    ;;
 
   move|move-live)
     vsh_checkperm operations $user move
@@ -279,7 +279,7 @@ case "$action" in
       echo "$0: move-live denied for $user" 
       exit 1
     fi
-    break;;
+    ;;
 
   moveall|moveall-live)
     vsh_checkperm operations $user move
@@ -297,7 +297,7 @@ case "$action" in
       echo "$0: moveall-live denied for $user" 
       exit 1
     fi
-    break;;
+    ;;
 
   move-offline)
     vsh_checkperm operations $user move
@@ -308,7 +308,7 @@ case "$action" in
       echo "$0: move-offline denied for $user" 
       exit 1
     fi
-    break;;
+    ;;
 
   moveall-offline)
     vsh_checkperm operations $user move
@@ -326,7 +326,7 @@ case "$action" in
       echo "$0: moveall-offline denied for $user" 
       exit 1
     fi
-    break;;
+    ;;
 
   run)
     # Run command/start shell in container.
@@ -378,7 +378,7 @@ case "$action" in
       echo "$0: permission denied for $user@$ct" 
       exit 1
     fi
-    break;;
+    ;;
 
   start)
     vsh_checkperm operations $user startstop
@@ -389,7 +389,7 @@ case "$action" in
       echo "$0: start $ct denied for $user" 
       exit 1
     fi
-    break;;
+    ;;
 
   stop)
     vsh_checkperm operations $user startstop
@@ -400,11 +400,11 @@ case "$action" in
       echo "$0: stop $ct denied for $user" 
       exit 1
     fi
-    break;;
+    ;;
 
   usage)
     usage
     exit
-    break;;
+    ;;
 esac
 

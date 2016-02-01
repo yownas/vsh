@@ -1,0 +1,114 @@
+#
+# This is supposed to be sourced by the vshd-script
+#
+
+###
+# vsh_cttoname ct
+#
+# Try to look up the name of ct
+###
+
+vsh_cttoname() {
+  tmp_ct=$1
+
+  vsh_return=""
+
+  tmp_proto=`echo $ct | sed 's/^\([^:]*\):.*/\1/'`
+  tmp_ct=`echo $ct | sed 's/^[^:]*:\(.*\)/\1/'`
+
+  case "$tmp_proto" in
+    ssh)
+      # Return alias for ssh-path
+      vsh_return=`grep "${ct}$" $vshdproxy | awk '{print $1}' | head -1`
+      ;;
+    vsh)
+      # Use 'vsh -l' to get cointainer name for vsh-proxied clients
+      $VSH_BIN -lll | awk '{print $3"="$2}' | awk -F= '/^'${tmp_ct}'=/{print $2}'
+      ;;
+    *)
+      # No proto, assume it is a Solaris zone
+      #TODO: Find a good way to return hostname from zone  
+      ;;
+   esac
+}
+
+###
+# vsh_movect live|offline <ct> <host>
+#
+# Try to move a container to another host
+###
+
+vsh_movect() {
+  mode=$1
+  ct=$2
+  otherhost=$3
+
+  # Add useful code here
+  echo "vsh_movect: NOT IMPLEMENTED ON HOST "`hostname`
+}
+
+###
+# vsh_list
+#
+# Write a list of containers/zones/jails/clients on stdout as:
+# vshd-hostname container container-id status
+###
+
+vsh_list() {
+  (zoneadm list -vi | tail +2 | awk '{print $2" "$2" "$3}' | sed "s/^/`hostname` /" )
+
+}
+
+###
+# vsh_login(username,container[,command])
+#
+#
+###
+
+vsh_login() {
+  tmp_user=$1
+  tmp_ct=$2
+  tmp_ccmd=$3
+
+  if [ "$tmp_user" = "root" ]; then
+    # Run as root
+    zlogin $tmp_ct $tmp_ccmd
+  else
+    # Run as user in $tmp_user
+    if [ "$tmp_ccmd" = "" ]
+    then
+      # "enter" will give you a tty but this will
+      # also echo the 'su' command.
+      # Ugly, but it works.
+      zlogin $tmp_ct su - $tmp_user
+    else
+      zlogin $tmp_ct su - $tmp_user -- -c \'"$tmp_ccmd"\'
+    fi
+  fi
+}
+
+
+###
+# vsh_start(container)
+#
+# Start a container
+###
+
+vsh_start() {
+  tmp_ct=$1
+
+  # Add useful code here
+  echo "vsh_start: NOT IMPLEMENTED ON HOST "`hostname`
+}
+
+###
+# vsh_stop(container)
+#
+# Stop a container
+###
+
+vsh_stop() {
+  tmp_ct=$1
+  # Add useful code here
+  echo "vsh_stop: NOT IMPLEMENTED ON HOST "`hostname`
+}
