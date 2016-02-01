@@ -7,14 +7,12 @@
 modules=~/.vsh/modules
 keyfile_name=~/.vsh/keys/vsh-`whoami`-SUFFIX
 statefile=~/.vsh/var/ctstate
+hostfile=~/.vsh/hosts
+distkeyfolder=/tmp/`whoami`/
 
-# Check if we should use VSH_HOSTFILE or set one ourselves.
-if [ "$VSH_HOSTFILE" = "" ]
-then
-  hostfile=~/.vsh/hosts
-else
-  hostfile=$VSH_HOSTFILE
-fi
+# Check if we should use environment variables.
+[ \! "$VSH_HOSTFILE" = "" ] && hostfile=$VSH_HOSTFILE
+[ \! "$VSH_DISTKEYFOLDER" = "" ] && distkeyfolder=$VSH_DISTKEYFOLDER
 
 ############################
 # Variables (Do not edit)
@@ -169,6 +167,8 @@ Actions:
                 update vshd.ini to give you persmissions.
 	-t
 		Create folder and empty hostfile-template, implies -g.
+	-d
+		Copy your public keys to a shared folder for distribution.
 	-h <container> [<command>]
 		Run command/shell on host of container.
 	-H <host> [<command>]
@@ -203,6 +203,10 @@ else
         addkey="true";
         shift;
         ;;
+      -d)
+        action=distkeys;
+        needconf=no;
+        break;;
       -g)
         action=genkeys;
         shift;
@@ -410,6 +414,22 @@ then
 fi
 
 case "$action" in
+  distkeys)
+    if [ \! -d "$distkeyfolder" ]
+    then
+      mkdir -p "$distkeyfolder"
+      echo "Created $distkeyfolder"
+    fi
+    if [ \! -O "$distkeyfolder" ]
+    then
+      echo "$0: ERROR You need to be the owner of $distkeyfolder"
+      exit 1
+    fi
+
+    cp `echo $keyfile_name | sed 's/SUFFIX/*/'`.dist.pub $distkeyfolder
+    echo "Copied these keys to $distkeyfolder:"
+    ls -1  `echo $keyfile_name | sed 's/SUFFIX/*/'`.dist.pub
+    ;;
   genkeys)
     if [ -f "${keyfile}" -o -f "${keyfile}.pub" ]; then
       if [ "$quiet" = "false" ]; then
