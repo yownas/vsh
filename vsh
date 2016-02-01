@@ -6,7 +6,7 @@
 
 hostfile=~/.vsh/hosts
 keyfile_name=~/.vsh/keys/vsh-`whoami`-SUFFIX
-statefile=~/.vsh/ctstate
+statefile=~/.vsh/var/ctstate
 modules=~/.vsh/modules
 
 SSH="ssh -t -o PasswordAuthentication=no -o ConnectTimeout=4"
