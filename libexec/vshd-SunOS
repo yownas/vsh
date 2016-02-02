@@ -55,7 +55,7 @@ vsh_movect() {
 ###
 
 vsh_list() {
-  (zoneadm list -vi | tail +2 | awk '{print $2" "$2" "$3}' | sed "s/^/`hostname` /" )
+  (zoneadm list -vi | tail +2 | grep -v '^ *0 global' | awk '{print $2" "$2" "$3}' | sed "s/^/`hostname` /" )
 
 }
 
