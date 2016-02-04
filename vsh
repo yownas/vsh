@@ -420,11 +420,13 @@ case "$action" in
       mkdir -p "$distkeyfolder"
       echo "Created $distkeyfolder"
     fi
-    if [ \! -O "$distkeyfolder" ]
-    then
-      echo "$0: ERROR You need to be the owner of $distkeyfolder"
-      exit 1
-    fi
+
+# Not needed
+#    if [ \! -O "$distkeyfolder" ]
+#    then
+#      echo "$0: ERROR You need to be the owner of $distkeyfolder"
+#      exit 1
+#    fi
 
     cp `echo $keyfile_name | sed 's/SUFFIX/*/'`.dist.pub $distkeyfolder
     echo "Copied these keys to $distkeyfolder:"
