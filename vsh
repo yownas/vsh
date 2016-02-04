@@ -183,7 +183,7 @@ EOF
 ############################
 
 # Defaults
-action=run
+action=usage
 addkey=false
 update=true
 [ "$VSH_UPDATE" = "0" -o "$VSH_UPDATE" = "false" ] && update=false
@@ -321,6 +321,7 @@ else
 
       # If no (more) options, treat the rest as <container> [<command>]
       *)
+        action=run;
         ct=$1;
         shift;
         ccmd=$*;
