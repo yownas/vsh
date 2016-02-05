@@ -233,7 +233,7 @@ case "$action" in
       then
         /bin/bash -i
       else
-        $ccmd
+        eval $ccmd
       fi
     else
       echo "$0: permission denied for $user@localhost" 
