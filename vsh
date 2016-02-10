@@ -531,11 +531,11 @@ case "$action" in
           echo "operation: Container host not found for $ct."
           exit 1
         fi
-        break;;
+        ;;
       moveall|moveall-offline)
         vshhost=$ct
         vsh_ssh $vshhost $ccmd $otherhosts
-        break;;
+        ;;
       athosts)
         # $ct & $otherhosts contain the command to run
         vsh_athosts hostrun $ct $otherhosts 
