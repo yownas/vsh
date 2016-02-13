@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+# vsh version of scp
+#
+# Will tunnel tar via vsh to copy files.
+
+src_path=$1
+dst_path=$2
+
+# Show usage
+if [ -z "$src_path" -o -z "$dst_path" ]; then
+  echo "$0 [<ct>:]folder|file [<ct>:]folder"
+  exit 1
+fi
+
+# Variables
+arc_file=""
+src_ct=""
+dst_ct=""
+
+# Split into what should be container & path
+if echo "$src_path" | grep : 
+then
+  # Set ct to "vsh ct"
+  src_ct=`echo "$src_path" | sed 's/:.*$//;s/^/vsh /'`
+  src_path=`echo "$src_path" | sed 's/^.*://'`
+else
+  # If file/folder is local, just use eval as command
+  src_ct=eval
+fi
+
+# Split into folder and file/folder
+if echo "$src_path" | grep / 
+then
+  src_file=`echo "$src_path" | sed 's#^.*/\([^/]*\)$#\1#'`
+  src_path=`echo "$src_path" | sed 's#^\(.*/\)[^/]*$#\1#'`
+else
+  # Source doesn't contain a path, copy file/folder in "."
+  src_file=$src_path
+  src_path=.
+fi
+
+# Split into what should be container & path
+if echo "$dst_path" | grep : 
+then
+  # Set ct to "vsh ct"
+  dst_ct=`echo "$dst_path" | sed 's/:.*$//;s/^/vsh /'`
+  dst_path=`echo "$dst_path" | sed 's/^.*://'`
+else
+  # If file/folder is local, just use eval as command
+  dst_ct=eval
+fi
+
+# Do the things
+$src_ct "cd $src_path && tar cf - $src_file" | $dst_ct "cd $dst_path && tar xvf -"
+
