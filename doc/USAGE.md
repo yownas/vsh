@@ -27,6 +27,8 @@ The "random" text at the end is the public part of your key and you should give 
 
 When the key is added you need a list of vshd-hosts to put in your `~/.vsh/hosts` (one server per line).
 
+If your hostfile exist or one has been setup and referenced with VSH_HOSTFILE the ssh hostkeys will be added to your ~/.ssh/known_hosts file.
+
 After you added the hosts you should be able to list all available containers with `vsh -l`.
 
 # Using ssh-agent #

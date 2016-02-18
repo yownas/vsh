@@ -601,7 +601,10 @@ Please add vsh-hosts to this file.
 
 EOF
     else
-      echo "Hostfile exist. Skipping."
+      echo "Hostfile exist. Adding keys to ~/.ssh/known_hosts."
+      mv -f ~/.ssh/known_hosts ~/.ssh/known_hosts.vshtmp
+      (cat ~/.ssh/known_hosts.vshtmp ; awk '/^[^#]/{print $1}' < $hostfile | ssh-keyscan -f - 2> /dev/null) |\
+        sort | uniq > ~/.ssh/known_hosts
     fi
 
     # Check if ctstate dir exists, otherwise create a new one.
