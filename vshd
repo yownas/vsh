@@ -231,7 +231,7 @@ case "$action" in
     then
       if [ "$ccmd" = "" ]
       then
-        /bin/bash -i
+        /bin/bash -il
       else
         eval $ccmd
       fi
