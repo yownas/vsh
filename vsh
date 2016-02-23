@@ -14,6 +14,13 @@ distkeyfolder=/tmp/`whoami`/
 [ \! "$VSH_HOSTFILE" = "" ] && hostfile=$VSH_HOSTFILE
 [ \! "$VSH_DISTKEYFOLDER" = "" ] && distkeyfolder=$VSH_DISTKEYFOLDER
 
+# If VSH_AUTH_SOCK is set, use it instead of SSH_AUTH_SOCK
+if [ \! "$VSH_AUTH_SOCK" = "" ]
+then
+  export SSH_AUTH_SOCK=$VSH_AUTH_SOCK
+  unset VSH_AUTH_SOCK
+fi
+
 ############################
 # Variables (Do not edit)
 ############################
