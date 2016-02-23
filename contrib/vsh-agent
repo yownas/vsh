@@ -1,0 +1,45 @@
+#!/bin/sh
+
+# A replacement for ssh-agent to avoid mixing keys.
+
+case "$1" in
+  -l|-L|-D)
+    env SSH_AUTH_SOCK=$VSH_AUTH_SOCK ssh-add $1
+    ;;
+  -d)
+    env SSH_AUTH_SOCK=$VSH_AUTH_SOCK ssh-add $1 $2
+    ;;
+  -e)
+    echo "Copy-paste this into another terminal"
+    echo ""
+    peintenv | egrep '^(VSH_AUTH_SOCK|VSH_AGENT_PID)' | sed 's/^/export /'
+    echo ""
+    ;;
+  -a)
+    env SSH_AUTH_SOCK=$VSH_AUTH_SOCK ssh-add $2
+    ;;
+  -k)
+    env SSH_AUTH_SOCK=$VSH_AUTH_SOCK SSH_AGENT_PID=$VSH_AGENT_PID \
+      ssh-agent -k | sed 's/SSH/VSH/g'
+      ;;
+  "")
+    ssh-agent | sed 's/SSH/VSH/g'
+    ;;
+  *)
+    cat <<EOF
+Usage: $0 [-adDelLk] [<file>|<key>]
+
+-a <file>     Add key
+-e            Export environment variables
+-l|-L         List keys
+-d <key>|-D   Remove keys
+-k            Kill vsh-agent
+
+Start:
+eval \`vsh-agent\`
+
+Stop:
+eval \`vsh-agent -k\`
+EOF
+    ;;
+esac
