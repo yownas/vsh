@@ -12,7 +12,7 @@ case "$1" in
   -e)
     echo "Copy-paste this into another terminal"
     echo ""
-    peintenv | egrep '^(VSH_AUTH_SOCK|VSH_AGENT_PID)' | sed 's/^/export /'
+    printenv | egrep '^(VSH_AUTH_SOCK|VSH_AGENT_PID)' | sed 's/^/export /'
     echo ""
     ;;
   -a)
