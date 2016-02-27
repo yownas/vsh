@@ -556,7 +556,7 @@ case "$action" in
   module)
     if [ -f "${modules}/${ccmd}" ]; then
       #${modules}/${ccmd} ${args}
-      . ${modules}/${ccmd}
+      . ${modules}/${ccmd} ${args}
     else
       echo "No module: ${ccmd}"
       exit 1
