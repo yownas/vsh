@@ -267,7 +267,7 @@ else
         shift;
         args=$*;
         if [ -z "$ccmd" ]; then
-          echo "ERROR: module name needed."
+          echo "ERROR: module name needed. (try: vsh -M list)"
           exit 1
         fi
         break;;

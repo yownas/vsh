@@ -1,0 +1,30 @@
+# Do a quick check of all containers
+#
+# Usage:
+#   vsh -M qc [<amount>]
+#
+##
+
+MAX=5
+
+[ \! "$1" = "" ] && MAX=$1
+
+HEADERS='
+s/df:HDR/HDR:Disk space:/;
+'
+
+# Run server-side of the module on all hosts then sort and display
+# the biggest top $MAX values.
+# Expected format from the server is:
+#   <check> <container> <value> <human readable value/comment>
+# Before each check you get a "<check>:HDR" header that you may
+# change into something readable.
+
+for qchost in `vsh -H`; do
+  VSH_SSH_OPTS="-o LogLevel=QUIET"
+  vsh_ssh $qchost module qc
+done | \
+sort -k1,1 -k3,3nr | \
+awk 'BEGIN{l="";m='$MAX'-1}{if($1==l){if(i){print;i--}}else{i=m;l=$1;print l":HDR\n"$0}}' | \
+sed "$HEADERS" | \
+awk '/HDR:/{print substr($0, 5)}!/^HDR:/{h=$2;$1=$2=$3="";printf("%40s%s\n", h, $0)}'

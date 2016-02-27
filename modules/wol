@@ -1,0 +1,54 @@
+# Send wake-on-lan packets to hosts.
+#
+# Small script that sends wake-on-lan packages to hosts in your vsh-hosts file
+# vsh treats anything except the first argument in that list as a comment.
+# We use that to store the mac-addr for the host.
+#
+# Usage:
+#   vsh -M wol <hostname>
+# Also supports regular expressions.
+#   vsh -M wol 'vsh-host[1-5]'
+##
+
+broadcast="192.168.1.255"
+
+# Choose a command to send the udp-packet
+# nc should work on most Linuxes but if that
+# fails, try socat which works fine on Freebsd
+
+#wolcmd="nc -w 1 -u ${broadcast} 7"
+wolcmd="socat - udp-datagram:${broadcast}:7,broadcast"
+
+hostmask=$1
+packets=2
+
+# You shouldn't need to change anything below this line
+#######################################################
+
+wol() {
+  e=$1
+
+  echo -n "Wake up $1"
+
+  i=0
+  while [ $i -lt $packets ]; do
+    i=$(expr $i + 1)
+    # Use dc to convert ascii-hex to actual binary and send the packet with $wolcmd.
+    (echo "16i" ; echo "FFFFFFFFFFFF$e$e$e$e$e$e$e$e$e$e$e$e$e$e$e$e" | sed 's/\(..\)/\1P/g') | dc | $wolcmd
+
+    echo -n "."
+  done
+  echo ""
+
+}
+
+# Use $hostfile from vsh to get the list of hosts
+
+for ether in `cat $hostfile | awk '/'$hostmask'/{printf($2" ")}'`; do
+  # Remove : and make letters uppercase.
+  ether=`echo $ether | tr -d : | tr 'a-z' 'A-Z'`
+  # Change all valid chars to 0, if it then matches 12 0'es it is a valid mac-addr. 
+  if [ "`echo $ether | tr '[A-F0-9]' '0000000000000000'`" == "000000000000" ]; then 
+    wol $ether
+  fi
+done

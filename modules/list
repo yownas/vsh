@@ -1,0 +1,27 @@
+# List modules and usage (-l for long-list)
+#
+# Usage:
+#   vsh -M list
+#   vsh -M list -l
+#     Long output
+#
+##
+
+# Simply list all modules and show the first line
+# which hopefully is a description on what the
+# module does.
+#
+# Will stop output when it see two hashes on a line "##".
+
+cd $modules || (echo "Can access $modules";exit 1)
+
+for module in `find . -type f | sed 's#.*/##'`; do
+  echo "==== $module ===="
+  if [ "$args" = "-l" ]; then
+    cat $module | awk '/^##$/{exit}{print}' | sed 's/^#//;s/^ //'
+  else
+    cat $module | head -1 | sed 's/^#//;s/^ //'
+  fi
+  echo ""
+done
+
