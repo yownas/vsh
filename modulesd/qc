@@ -2,10 +2,12 @@
 #
 # Return different stats of the local containers
 
+df_folders="/ /tmp"
+
 for ct in `vzlist -Ho hostname`
 do
   # df check -
-  vzctl exec $ct "df -k / /tmp 2> /dev/null | grep -v ^Filesystem | \
+  vzctl exec $ct "df -k $df_folders 2> /dev/null | grep -v ^Filesystem | \
+  sort | uniq | \
   awk '{printf(\"df %s %s %s %s use\n\", \"'$ct'\",\$5, \$6, \$5)}'"
 done
-
