@@ -11,6 +11,8 @@ MAX=5
 
 HEADERS='
 s/df:HDR/HDR:Disk space:/;
+s/load:HDR/HDR:Average load:/;
+s/procs:HDR/HDR:Number of processes:/;
 '
 
 # Run server-side of the module on all hosts then sort and display

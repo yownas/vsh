@@ -2,12 +2,19 @@
 #
 # Return different stats of the local containers
 
-df_folders="/ /tmp"
+# FIXME: Only works on Linux at the moment
 
 for ct in `vzlist -Ho hostname`
 do
-  # df check -
-  vzctl exec $ct "df -k $df_folders 2> /dev/null | grep -v ^Filesystem | \
+  # df - Check disk usage
+  vzctl exec $ct "df -lk 2> /dev/null | grep -v ^Filesystem | \
   sort | uniq | \
   awk '{printf(\"df %s %s %s %s use\n\", \"'$ct'\",\$5, \$6, \$5)}'"
+
+  # avgload - Load average for each container
+  vzctl exec $ct "uptime | tr -d , | sed 's/^.*load average: //' | awk '{print \"load $ct \"\$1\"\"\$0}'"
+
 done
+
+# procs - Get number of running processes
+vzlist -Ho hostname,numproc | awk '{print "procs",$1,$2,$2}'
