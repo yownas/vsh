@@ -489,6 +489,13 @@ case "$action" in
     fi
     if [ ! "$vshhost" = "" ]
     then
+      # Add -t to get a tty if we are requesting a shell
+      if [ "$ccmd" = "" ]
+      then
+        VSH_SSH_OPTS="-t"
+      else
+        VSH_SSH_OPTS=""
+      fi
       vsh_ssh $vshhost hostrun $ccmd
     else
       echo "hostrun: Container host not found."
@@ -586,7 +593,13 @@ case "$action" in
         vsh_getctpath $ct
         tmp_path=$vsh_return
       fi
-      
+      # Add -t to get a tty if we are requesting a shell
+      if [ "$ccmd" = "" ]
+      then
+        VSH_SSH_OPTS="-t"
+      else
+        VSH_SSH_OPTS=""
+      fi
       # Hopefully we have a host and path here...
       vsh_ssh $vshhost run $tmp_path $ccmd
     else
