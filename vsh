@@ -26,7 +26,7 @@ fi
 ############################
 
 vsh_hosts=`cat $hostfile 2> /dev/null| awk '/^[^#]/{print $1}' | tr '\012' ' ' `
-SSH="ssh -t -o PasswordAuthentication=no -o NumberOfPasswordPrompts=0 -o ConnectTimeout=4"
+SSH="ssh -o PasswordAuthentication=no -o NumberOfPasswordPrompts=0 -o ConnectTimeout=4"
 
 ############################
 # Functions
