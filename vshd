@@ -17,6 +17,9 @@ vshdproxy=${vshprefix}/etc/proxy-clients
 moduledir=${vshprefix}/modulesd
 VSH_BIN=${vshprefix}/bin/vsh
 
+# unset this, incase we will act as vsh-proxy
+unset VSH_HOSTFILE
+
 ############################
 # Logging
 ############################
