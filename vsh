@@ -60,7 +60,7 @@ vsh_getctname() {
 
   # Try to find container name.
   if [ "$vsh_container" = "" ]; then
-    vsh_container=`host $ct | awk '{print $1}'`
+    vsh_container=`(host $ct || echo ) | awk '{print $1}' | tail -1`
   fi
 
   if [ "$vsh_container" = "" ]; then
@@ -400,8 +400,8 @@ then
     exit 1
   fi
 
-  # Do some checks for -r
-  if [ "$action" = "run" ]
+  # Do some checks for -r & -x
+  if [ "$action" = "run" -o "$action" = "xrun" ]
   then
     # Check that we have a container name
     if [ "$ct" = "" ]
@@ -411,6 +411,10 @@ then
       echo "ERROR: container name needed."
       exit 1
     fi
+
+    # Try to get hostname of ct from statefile or dns
+    vsh_getctname $ct
+    ct=$vsh_return
 
     # If container is in hostlist, do a hostrun instead of run
     if (cat $hostfile | awk '{print $1}' | grep "^${ct}$" > /dev/null)
@@ -428,13 +432,6 @@ case "$action" in
       mkdir -p "$distkeyfolder"
       echo "Created $distkeyfolder"
     fi
-
-# Not needed
-#    if [ \! -O "$distkeyfolder" ]
-#    then
-#      echo "$0: ERROR You need to be the owner of $distkeyfolder"
-#      exit 1
-#    fi
 
     cp `echo $keyfile_name | sed 's/SUFFIX/*/'`.dist.pub $distkeyfolder
     echo "Copied these keys to $distkeyfolder:"
@@ -571,17 +568,11 @@ case "$action" in
     ;;
   run)
     [ "$update" = "true" ] && vsh_updatestate
+
     # Get host of container
     vsh_gethost $ct
     vshhost=$vsh_return
-    if [ "$vshhost" = "" ]
-    then
-      # Try getctname to parse the name and search for host again
-      vsh_getctname $ct
-      ct=$vsh_return
-      vsh_gethost $ct
-      vshhost=$vsh_return
-    fi
+
     if [ ! "$vshhost" = "" ]
     then
       vsh_getctpath $ct
@@ -662,20 +653,6 @@ EOF
     # Get host of container
     vsh_gethost $ct
     vshhost=$vsh_return
-    if [ ! "$vshhost" = "" ]
-    then
-      # Try getctname to parse the name and search for host again
-      vsh_getctname $ct
-      ct=$vsh_return
-      vsh_gethost $ct
-      vshhost=$vsh_return
-    fi
-
-#    [ "$update" = "true" ] && vsh_updatestate
-#    vsh_getctname $ct
-#    ct=$vsh_return
-#    vsh_gethost $ct
-#    vshhost=$vsh_return
 
     if [ ! "$vshhost" = "" ]
     then
@@ -718,7 +695,7 @@ EOF
          -l $remote_user vsh-x11-connection $ccmd
 
     else
-      echo "xrun: Container not found."
+      echo "xrun: Container or host not found."
       exit 1
     fi
     ;;
