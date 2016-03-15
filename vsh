@@ -125,7 +125,8 @@ vsh_updatestate() {
 # usage
 # Print usage
 usage() {
-	cat <<EOF
+  if [ "$quiet" = "false" ]; then
+    cat <<EOF
 VZ shell
 
 Usage: $0 [options] [action]
@@ -183,6 +184,7 @@ Actions:
 	-?
 		Show this.
 EOF
+  fi
 }
 
 ############################
@@ -208,6 +210,7 @@ else
     case "$1" in
       -a)
         addkey="true";
+        quiet=true;
         shift;
         ;;
       -d)
