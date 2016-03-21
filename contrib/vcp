@@ -52,5 +52,5 @@ else
 fi
 
 # Do the things
-$src_ct "cd $scr_path && tar -cf - $src_file" | $dst_ct "cd $dst_path && tar -xvf -"
+$src_ct "cd $src_path && tar -cf - $src_file" | $dst_ct "cd $dst_path && tar -xvf -"
 
