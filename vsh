@@ -9,10 +9,12 @@ keyfile_name=~/.vsh/keys/vsh-`whoami`-SUFFIX
 statefile=~/.vsh/var/ctstate
 hostfile=~/.vsh/hosts
 distkeyfolder=/tmp/`whoami`/
+keylife=32400	# 9 hours
 
 # Check if we should use environment variables.
-[ \! "$VSH_HOSTFILE" = "" ] && hostfile=$VSH_HOSTFILE
 [ \! "$VSH_DISTKEYFOLDER" = "" ] && distkeyfolder=$VSH_DISTKEYFOLDER
+[ \! "$VSH_HOSTFILE" = "" ] && hostfile=$VSH_HOSTFILE
+[ \! "$VSH_KEYLIFE" = "" ] && keylife=$VSH_KEYLIFE
 
 # If VSH_AUTH_SOCK is set, use it instead of SSH_AUTH_SOCK
 if [ \! "$VSH_AUTH_SOCK" = "" ]
@@ -56,7 +58,7 @@ vsh_athosts() {
 vsh_getctname() {
   ct=$1
   # fqdn/cid?
-  vsh_container=`grep " $ct " $statefile | awk '{print $2}'`
+  vsh_container=`grep " $ct " $statefile | awk '{print $2}' | tail -1`
 
   # Try to find container name.
   if [ "$vsh_container" = "" ]; then
@@ -77,18 +79,18 @@ vsh_gethost() {
   ct=$1
   vsh_getctname $ct
   cid=$vsh_return
-  vsh_return=`cat $statefile | awk '{print $2" "$1" "$3}' | grep "^$cid " | cut -d" " -f2`
+  vsh_return=`cat $statefile | awk '{print $2" "$1" "$3}' | grep "^$cid " | cut -d" " -f2 | tail -1`
 }
 
 # vsh_getctpath ct
 # Get path for container
 vsh_getctpath() {
   tmp_ct=$1
-  vsh_return=`cat $statefile | awk '{print $2" "$1" "$3}' | grep "^$tmp_ct " | head -1 | cut -d" " -f3`
+  vsh_return=`cat $statefile | awk '{print $2" "$1" "$3}' | grep "^$tmp_ct " | head -1 | cut -d" " -f3 | tail -1`
   # If it isn't found as hostname, try as path
   if [ "$vsh_return" = "" ]
   then
-    vsh_return=`cat $statefile | awk '{print $2" "$1" "$3}' | grep " $ct$" | head -1 | cut -d" " -f3`
+    vsh_return=`cat $statefile | awk '{print $2" "$1" "$3}' | grep " $ct$" | head -1 | cut -d" " -f3 | tail -1`
   fi
 }
 
@@ -357,8 +359,7 @@ then
     # Add key to external ssh-agent
     if [ "$addkey" = "true" ]
     then
-      # FIXME: Maybe we should have a timeout here?
-      ssh-add $keyfile 2> /dev/null
+      ssh-add -t $keylife $keyfile 2> /dev/null
     fi
   else
     vsh_tmpagent=yes
@@ -417,13 +418,20 @@ then
 
     # Try to get hostname of ct from statefile or dns
     vsh_getctname $ct
-    ct=$vsh_return
+    dns_ct=$vsh_return
 
     # If container is in hostlist, do a hostrun instead of run
-    if (cat $hostfile | awk '{print $1}' | grep "^${ct}$" > /dev/null)
+    if (vsh -H | grep "^${ct}$" > /dev/null)
     then
+      action=hostrun
+      vshhost=$ct;
+    else
+      # Could not find it as type by user, try the vsh_getctname version
+      if (vsh -H | grep "^${dns_ct}$" > /dev/null)
+      then
         action=hostrun
-        vshhost=$ct;
+        vshhost=$dns_ct;
+      fi
     fi
   fi
 fi
