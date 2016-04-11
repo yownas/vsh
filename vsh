@@ -714,7 +714,8 @@ EOF
         -o ProxyCommand="$SSH $vshhost run $ct \"/usr/sbin/sshd -i \
           -o HostKey=${remote_home}/.vsh/x11.tmp$$ \
           -o AuthorizedKeysFile=${remote_home}/.vsh/x11.tmp$$.pub \
-          -o UsePrivilegeSeparation=no -o UsePAM=no; \
+          -o UsePrivilegeSeparation=no -o UsePAM=no \
+          -o X11Forwarding=yes; \
           rm ${remote_home}/.vsh/x11.tmp$$.pub ${remote_home}/.vsh/x11.tmp$$\"" \
          -l $remote_user vsh-x11-connection $ccmd
 
