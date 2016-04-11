@@ -667,6 +667,19 @@ EOF
 
     if [ ! "$vshhost" = "" ]
     then
+      vsh_getctpath $ct
+      tmp_path=$vsh_return
+      if [ "$tmp_path" = "" ]
+      then
+        vsh_getctname $ct
+        ct=$vsh_return
+        vsh_getctpath $ct
+        tmp_path=$vsh_return
+      fi
+    fi
+
+    if [ ! "$vshhost" = "" ]
+    then
       # Find X11-key
       xkey=`echo $keyfile_name | sed "s/SUFFIX/X11/"`
 
