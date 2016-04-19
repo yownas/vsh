@@ -24,8 +24,17 @@ unset VSH_HOSTFILE
 # Logging
 ############################
 
-logger "$0 ($$): $*"
-logger "$0 ($$): $SSH_ORIGINAL_COMMAND"
+LOG() {
+  logger "vshd ($$): $*"
+}
+ERROR() {
+  echo "error: $*"
+  LOG "error: $*"
+  exit 1
+}
+
+LOG "ARG: $*"
+LOG "CMD: $SSH_ORIGINAL_COMMAND"
 
 ############################
 # Functions
@@ -216,8 +225,7 @@ user=nobody
 if [ -x "$vshdexec" ]; then
   . $vshdexec $*
 else
-  echo "$vshdexec not found"
-  exit 1
+  ERROR "$vshdexec not found"
 fi
 
 # Parse arguments
@@ -239,8 +247,7 @@ case "$action" in
         eval $ccmd
       fi
     else
-      echo "$0: permission denied for $user@localhost" 
-      exit 1
+      ERROR "permission denied for $user@localhost" 
     fi
     ;;
 
@@ -268,8 +275,7 @@ case "$action" in
       # Run module
       . ${moduledir}/$module
     else
-      echo "$0: module $module denied for $user" 
-      exit 1
+      ERROR "module $module denied for $user" 
     fi
     ;;
 
@@ -279,8 +285,7 @@ case "$action" in
     then
       vsh_movect live $ct $otherhost
     else
-      echo "$0: move-live denied for $user" 
-      exit 1
+      ERROR "move-live denied for $user" 
     fi
     ;;
 
@@ -294,11 +299,11 @@ case "$action" in
         moveto=`echo $hosts | awk '{print $1}'`
         hosts=`echo $hosts" " | sed 's/^[^ ]* //;s/ $//'`
         [ -z "$hosts" ] && hosts=$otherhosts
+        LOG "move $ct to $moveto"
         vsh_movect live $ct $moveto
       done
     else
-      echo "$0: moveall-live denied for $user" 
-      exit 1
+      ERROR "moveall-live denied for $user" 
     fi
     ;;
 
@@ -308,8 +313,7 @@ case "$action" in
     then
       vsh_movect offline $ct $otherhost
     else
-      echo "$0: move-offline denied for $user" 
-      exit 1
+      ERROR "move-offline denied for $user" 
     fi
     ;;
 
@@ -323,11 +327,11 @@ case "$action" in
         moveto=`echo $hosts | awk '{print $1}'`
         hosts=`echo $hosts" " | sed 's/^[^ ]* //;s/ $//'`
         [ -z "$hosts" ] && hosts=$otherhosts
+        LOG "move $ct to $moveto"
         vsh_movect offline $ct $moveto
       done
     else
-      echo "$0: moveall-offline denied for $user" 
-      exit 1
+      ERROR "moveall-offline denied for $user" 
     fi
     ;;
 
@@ -378,8 +382,7 @@ case "$action" in
       esac
 
     else
-      echo "$0: permission denied for $user@$ct" 
-      exit 1
+      ERROR "permission denied for $user@$ct" 
     fi
     ;;
 
@@ -389,8 +392,7 @@ case "$action" in
     then
       vsh_start $ct
     else
-      echo "$0: start $ct denied for $user" 
-      exit 1
+      ERROR "start $ct denied for $user" 
     fi
     ;;
 
@@ -400,8 +402,7 @@ case "$action" in
     then
       vsh_stop $ct
     else
-      echo "$0: stop $ct denied for $user" 
-      exit 1
+      ERROR "stop $ct denied for $user" 
     fi
     ;;
 
@@ -411,3 +412,4 @@ case "$action" in
     ;;
 esac
 
+LOG "_END_"
