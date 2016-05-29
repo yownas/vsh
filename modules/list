@@ -13,6 +13,7 @@
 #
 # Will stop output when it see two hashes on a line "##".
 
+# Should it not be (echo "Can't access $modules";exit 1)
 cd $modules || (echo "Can access $modules";exit 1)
 
 for module in `find . -type f | sed 's#.*/##'`; do
