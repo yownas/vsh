@@ -135,7 +135,7 @@ You can also let vshd act as a proxy for vsh. Add "* vsh:" to proxy-clients and 
 
 This can be useful if you have hosts on a NATed network and only have one public IP on the outside. (Maybe. As I stated before, this is experimental and added mostly because "it was possible".)
 
-Example /opr/vsh/etc/proxy-clients:
+Example `/opt/vsh/etc/proxy-clients`:
 ```
 # <alias>	ssh:<hostname|fqdn|ip>
 # *		vsh:
