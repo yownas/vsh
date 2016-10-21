@@ -27,7 +27,7 @@ vsh_cttoname() {
       ;;
     *)
       # No proto, assume it is an OpenVZ container
-      vsh_return=`vzlist -Hao hostname $tmp_ct 2> /dev/null` > /dev/null
+      vsh_return=`vzlist -Hato hostname $tmp_ct 2> /dev/null` > /dev/null
       ;;
    esac
 }
