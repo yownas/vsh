@@ -10,7 +10,7 @@ case "$1" in
     env SSH_AUTH_SOCK=$VSH_AUTH_SOCK ssh-add $1 $2
     ;;
   -e)
-    echo "Copy-paste this into another terminal"
+    echo "# Copy-paste this into another terminal"
     echo ""
     printenv | egrep '^(VSH_AUTH_SOCK|VSH_AGENT_PID)' | sed 's/^/export /'
     echo ""
