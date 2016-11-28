@@ -265,6 +265,9 @@ else
           -ll) ccmd="2";;
           -lll) ccmd="3";;
         esac
+        if [ "$update" = "false" ]; then
+          needconf=false
+        fi
         shift;;
       -M)
         action=module;
