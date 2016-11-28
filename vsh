@@ -119,7 +119,7 @@ vsh_updatestate() {
   for tmp_vshhost in $vsh_hosts;
   do
     VSH_SSH_OPTS="-o LogLevel=QUIET"
-    echo "" | vsh_ssh $tmp_vshhost list 2> /dev/null > ${statefile}_${tmp_vshhost} &
+    echo "" | vsh_ssh $tmp_vshhost list 2> /dev/null | awk '{$1="'$tmp_vshhost'";print}' > ${statefile}_${tmp_vshhost} &
   done
   wait
   cat ${statefile}_* | tr '\t' ' ' > $statefile
