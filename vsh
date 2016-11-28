@@ -6,7 +6,8 @@
 
 modules=~/.vsh/modules
 keyfile_name=~/.vsh/keys/vsh-`whoami`-SUFFIX
-statefile=~/.vsh/var/ctstate
+statedir=~/.vsh/var
+statefile=$statedir/ctstate
 hostfile=~/.vsh/hosts
 distkeyfolder=/tmp/`whoami`/
 keylife=32400	# 9 hours
@@ -347,8 +348,33 @@ fi
 [ -z "$keysuffix" ] && keysuffix=user 
 keyfile=`echo $keyfile_name | sed "s/SUFFIX/${keysuffix}/"`
 
+
+
 if [ "$needconf" = "yes" ]
 then
+  
+  # Test if we can't reach ssh-agent
+  ssh-add -l > /dev/null 2>&1
+  vsh_result=$?
+  if [ \! "$vsh_result" = "0" -a \! "$vsh_result" = "1" ]
+  then
+    # Try to find vsh-agent from file in $statedir
+    agentfile="$statedir/$(hostname -f).agent"
+    mkdir -p $statedir
+    if [[ -f "$agentfile" ]]; then
+      source $agentfile
+      proc=$(ps -C "ssh-agent" -f | grep " $VHS_AGENT_PID "|  grep "$USER")
+      # File found but no live ssh-agent process
+        if [[ -z "$proc" ]]; then
+          eval $(vsh-agent) > /dev/null
+          $vsh-agent -e | grep -e '^export'  > $agentfile
+        fi
+    else
+      eval $(vsh-agent) > /dev/null
+      $vsh-agent -e | grep -e '^export'  > $agentfile
+    fi
+  fi
+
   # Start a local ssh-agent if needed
   # Test if we can reach ssh-agent
   ssh-add -l > /dev/null 2>&1 
@@ -362,6 +388,7 @@ then
       ssh-add -t $keylife $keyfile 2> /dev/null
     fi
   else
+    # Start a temporary ssh-agent.
     vsh_tmpagent=yes
     eval `ssh-agent -s` > /dev/null
   fi
