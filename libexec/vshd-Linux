@@ -25,6 +25,9 @@ vsh_cttoname() {
       # Use 'vsh -l' to get cointainer name for vsh-proxied clients
       $VSH_BIN -lll | awk '{print $3"="$2}' | awk -F= '/^'${tmp_ct}'=/{print $2}'
       ;;
+    lxc)
+      vsh_return=$(lxc-info -n $tmp_ct -H | grep ^Name: | awk '{print $2}')
+      ;;
     *)
       # No proto, assume it is an OpenVZ container
       vsh_return=`vzlist -Hato hostname $tmp_ct 2> /dev/null` > /dev/null
@@ -42,6 +45,12 @@ vsh_movect() {
   mode=$1
   ct=$2
   otherhost=$3
+
+  if [[ $ct == "lxc:"* ]]
+  then
+    echo "### Sorry. Migrating LXC containers not implemented, yet."
+    exit
+  fi
 
   case "$mode" in
     offline)
@@ -68,7 +77,17 @@ vsh_movect() {
 ###
 
 vsh_list() {
-    (vzlist -Hat -o hostname,ctid,status | sed "s/^/`hostname`\t/")
+    # List OpenVZ containers
+    if type vzlist > /dev/null 2>&1
+    then
+      (vzlist -Hat -o hostname,ctid,status | sed "s/^/`hostname`\t/")
+    fi
+
+    # List LXC containers
+    if type lxc-ls > /dev/null 2>&1
+    then
+      (lxc-ls -f -F name,name,state | tail -n 1 | awk '{print "'$(hostname)'",$1,"lxc:"$2,$3}')
+    fi
 }
 
 ###
@@ -86,11 +105,35 @@ vsh_login() {
     # Run as root
     if [ "$ccmd" = "" ]
     then
-      vzctl --quiet enter $tmp_ct
+      # Empty command means we want a shell
+      # Are we trying to enter an LXC container?
+      if [[ $tmp_ct == "lxc:"* ]]
+      then
+	tmp_ct=$(echo $tmp_ct | sed 's/^lxc://')
+        lxc-attach -n $tmp_ct -- bash -i
+      else
+        # Try enter OpenVZ container
+        if type vzctl > /dev/null 2>&1
+        then
+          vzctl --quiet enter $tmp_ct
+        fi
+      fi
     else
-      vzctl --quiet exec $tmp_ct $tmp_ccmd
+      # Execute command (try LXC, fallback on  OpenVZ)
+      if [[ $tmp_ct == "lxc:"* ]]
+      then
+	tmp_ct=$(echo $tmp_ct | sed 's/^lxc://')
+        lxc-attach -n $tmp_ct -- $tmp_ccmd
+      else
+        vzctl --quiet exec $tmp_ct $tmp_ccmd
+      fi
     fi
   else
+    if [[ $tmp_ct == "lxc:"* ]]
+    then
+      echo "### Sorry. Entering LXC containers as a user not implemented, yet."
+      exit
+    fi
     # Run as user in $tmp_user
     if [ "$tmp_ccmd" = "" ]
     then
@@ -112,7 +155,18 @@ vsh_login() {
 
 vsh_start() {
   tmp_ct=$1
-  vzctl start $tmp_ct
+
+  # Find container to start (grep first that match)
+  tmp_ct=$(vsh_list | grep " $tmp_ct " | awk '{print $3}' | head -1)
+
+  if [[ $tmp_ct == "lxc:"* ]]
+  then
+   tmp_ct=$(echo $tmp_ct | sed 's/^lxc://')
+   lxc-start -n $tmp_ct -d
+  else
+    # Try with OpenVZ as default
+    vzctl start $tmp_ct
+  fi
 }
 
 ###
@@ -123,5 +177,16 @@ vsh_start() {
 
 vsh_stop() {
   tmp_ct=$1
-  vzctl stop $tmp_ct
+
+  # Find container to start (grep first that match)
+  tmp_ct=$(vsh_list | grep " $tmp_ct " | awk '{print $3}' | head -1)
+
+  if [[ $tmp_ct == "lxc:"* ]]
+  then
+   tmp_ct=$(echo $tmp_ct | sed 's/^lxc://')
+   lxc-stop -n $tmp_ct
+  else
+    # Try with OpenVZ as default
+    vzctl stop $tmp_ct
+  fi
 }
