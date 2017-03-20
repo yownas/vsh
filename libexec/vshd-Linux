@@ -86,7 +86,7 @@ vsh_list() {
     # List LXC containers
     if type lxc-ls > /dev/null 2>&1
     then
-      (lxc-ls -f -F name,name,state | tail -n 1 | awk '{print "'$(hostname)'",$1,"lxc:"$2,$3}')
+      (lxc-ls -f -F name,name,state | tail -n +2 | awk '{print "'$(hostname)'",$1,"lxc:"$2,$3}')
     fi
 }
 
