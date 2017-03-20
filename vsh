@@ -190,25 +190,8 @@ EOF
   fi
 }
 
-############################
-# Main
-############################
-
-# Defaults
-action=usage
-addkey=false
-update=true
-[ "$VSH_UPDATE" = "0" -o "$VSH_UPDATE" = "false" ] && update=false
-prefix=false
-quiet=false
-# If needconf is set to yes we do need config-files.
-needconf=yes
-
-if [ -z "$1" ]
-then
-  action=usage
-  needconf=no
-else
+vsh_parseargs() {
+  # Parse all arguments
   while [ \! -z "$*" ]; do
     case "$1" in
       -a)
@@ -344,14 +327,42 @@ else
         break;;
     esac
   done
+}
+
+############################
+# Main
+############################
+
+# Defaults
+action=usage
+addkey=false
+update=true
+[ "$VSH_UPDATE" = "0" -o "$VSH_UPDATE" = "false" ] && update=false
+prefix=false
+quiet=false
+# If needconf is set to yes we do need config-files.
+needconf=yes
+
+if [ -z "$1" ]
+then
+  action=usage
+  needconf=no
+else
+  args=$*
+  # If we see this pattern, asume that we are run by scp
+  if [[ $* =~ --\ [^\ ]*\ scp\ [^\;\&]*-t ]]
+  then
+    args=$(echo $args | sed 's/^.*-- //')
+  fi
+
+  vsh_parseargs $args
+
 fi
 
 # Set key suffix from ENV or use default if none is given.
 [ -z "$keysuffix" ] && keysuffix=$VSH_KEY 
 [ -z "$keysuffix" ] && keysuffix=user 
 keyfile=`echo $keyfile_name | sed "s/SUFFIX/${keysuffix}/"`
-
-
 
 if [ "$needconf" = "yes" ]
 then
