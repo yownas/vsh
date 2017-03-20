@@ -1,0 +1,5 @@
+# Alias to use scp with vsh
+#
+# Source this file or add the content to your .bashrc
+
+vcp () { scp -S vsh $*; }
