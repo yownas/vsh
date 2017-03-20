@@ -350,7 +350,7 @@ then
 else
   args=$*
   # If we see this pattern, asume that we are run by scp
-  if [[ $* =~ --\ [^\ ]*\ scp\ [^\;\&]*-t ]]
+  if [[ $* =~ --\ [^\ ]*\ scp\ [^\;\&]*-[ft] ]]
   then
     args=$(echo $args | sed 's/^.*-- //')
   fi
