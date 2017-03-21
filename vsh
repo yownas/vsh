@@ -390,6 +390,14 @@ then
     fi
   fi
 
+  # If VSH_AUTH_SOCK is set, use it instead of SSH_AUTH_SOCK
+  # We need to redo this since we just started a vsh-agent
+  if [ \! "$VSH_AUTH_SOCK" = "" ]
+  then
+    export SSH_AUTH_SOCK=$VSH_AUTH_SOCK
+    unset VSH_AUTH_SOCK
+  fi
+
   # Start a local ssh-agent if needed
   # Test if we can reach ssh-agent
   ssh-add -l > /dev/null 2>&1 
