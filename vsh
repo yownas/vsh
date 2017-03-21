@@ -349,10 +349,11 @@ then
   needconf=no
 else
   args=$*
-  # If we see this pattern, asume that we are run by scp
-  if [[ $* =~ --\ [^\ ]*\ scp\ [^\;\&]*-[ft] ]]
+  # If we see this pattern, assume that we are run by scp
+  if [[ $* =~ ^-x\ .*\ scp\ [^\;\&]*-[ft] ]]
   then
-    args=$(echo $args | sed 's/^.*-- //')
+    # Drop ssh-arguments sent by scp but keep hostname and scp-command
+    args=$(echo $args | sed 's/^.* \([^ ]*\) scp /\1 scp/')
   fi
 
   vsh_parseargs $args
