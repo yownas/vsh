@@ -381,11 +381,11 @@ then
       # File found but no live ssh-agent process
         if [[ -z "$proc" ]]; then
           eval $(vsh-agent) > /dev/null
-          ${vsh-agent} -e | grep -e '^export'  > $agentfile
+          vsh-agent -e | grep -e '^export'  > $agentfile
         fi
     else
       eval $(vsh-agent) > /dev/null
-      ${vsh-agent} -e | grep -e '^export'  > $agentfile
+      vsh-agent -e | grep -e '^export'  > $agentfile
     fi
   fi
 
