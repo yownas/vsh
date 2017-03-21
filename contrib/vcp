@@ -1,0 +1,5 @@
+#!/bin/sh
+#
+# Shell-script for vcp
+
+scp -S vsh $*
