@@ -10,7 +10,7 @@ For this example we need three Un*x machines.
 
 These can all be the same machine if you just want to try vsh, but to make things easier to understand we will refer to the hosts by their role.
 
-First: Clone the vsh git-repo or download a zpi/tar file and unpack it.
+First: Clone the vsh git-repo or download a zip/tar file and unpack it.
 
 ```
 cd ~
@@ -56,7 +56,7 @@ cp ~/vsh/vshd /opt/vsh/bin
 cp ~/vsh/libexec/* /opt/vsh/libexec
 
 # Create minimal vshd.ini
-cat > /opt/vsh/etc/vshd.ini <<EOF
+cat <<EOF > /opt/vsh/etc/vshd.ini
 [groups]
 wheel=YOUR_USERNAME_HERE
 
