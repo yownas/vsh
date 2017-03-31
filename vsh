@@ -353,7 +353,7 @@ else
   if [[ $* =~ ^-x\ .*\ scp\ [^\;\&]*-[ft] ]]
   then
     # Drop ssh-arguments sent by scp but keep hostname and scp-command
-    args=$(echo $args | sed 's/^.* \([^ ]*\) scp /\1 scp/')
+    args=$(echo $args | sed 's/^.* \([^ ]*\) scp /\1 scp /')
   fi
 
   vsh_parseargs $args
