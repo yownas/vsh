@@ -343,7 +343,7 @@ case "$action" in
     then
       tmp_ct=$vsh_return
     fi
-    vsh_checkperm containers $user $ct
+    vsh_checkperm containers $user $tmp_ct
     if [ "$vsh_return" = "allowed" ]
     then
       # Check who to run as
