@@ -33,8 +33,7 @@ ERROR() {
   exit 1
 }
 
-LOG "ARG: $*"
-LOG "CMD: $SSH_ORIGINAL_COMMAND"
+LOG "ARG: $* CMD: $SSH_ORIGINAL_COMMAND"
 
 ############################
 # Functions
@@ -240,6 +239,7 @@ case "$action" in
     vsh_checkperm hosts $user `hostname`
     if [ "$vsh_return" = "allowed" ]
     then
+      LOG "hostrun for $user@localhost"
       if [ "$ccmd" = "" ]
       then
         /bin/bash -il
@@ -247,7 +247,7 @@ case "$action" in
         eval $ccmd
       fi
     else
-      ERROR "permission denied for $user@localhost" 
+      LOG "hostrun permission denied for $user@localhost"
     fi
     ;;
 
@@ -272,10 +272,11 @@ case "$action" in
   module)
     vsh_checkperm modules $user $module
     if [ "$vsh_return" = "allowed" ]; then
+      LOG "module $module run by $user"
       # Run module
       . ${moduledir}/$module
     else
-      ERROR "module $module denied for $user" 
+      LOG "module $module denied for $user"
     fi
     ;;
 
@@ -283,9 +284,10 @@ case "$action" in
     vsh_checkperm operations $user move
     if [ "$vsh_return" = "allowed" ]
     then
+      LOG "move-live $ct to $otherhost by $user"
       vsh_movect live $ct $otherhost
     else
-      ERROR "move-live denied for $user" 
+      LOG "move-live denied for $user"
     fi
     ;;
 
@@ -303,7 +305,7 @@ case "$action" in
         vsh_movect live $ct $moveto
       done
     else
-      ERROR "moveall-live denied for $user" 
+      LOG "moveall-live denied for $user"
     fi
     ;;
 
@@ -311,9 +313,10 @@ case "$action" in
     vsh_checkperm operations $user move
     if [ "$vsh_return" = "allowed" ]
     then
+      LOG "move-ofline $ct to $otherhost by $user"
       vsh_movect offline $ct $otherhost
     else
-      ERROR "move-offline denied for $user" 
+      LOG "move-offline denied for $user"
     fi
     ;;
 
@@ -331,7 +334,7 @@ case "$action" in
         vsh_movect offline $ct $moveto
       done
     else
-      ERROR "moveall-offline denied for $user" 
+      LOG "moveall-offline denied for $user"
     fi
     ;;
 
@@ -363,35 +366,37 @@ case "$action" in
       fi
 
       # Proxy-client or container
-      tmp_proto=`echo $ct | sed 's/^\([^:]*\):.*/\1/'`
-      tmp_ct=`echo $ct | sed 's/^[^:]*:\(.*\)/\1/'`
+      target_proto=`echo $ct | sed 's/^\([^:]*\):.*/\1/'`
+      target_ct=`echo $ct | sed 's/^[^:]*:\(.*\)/\1/'`
+
+      LOG "run $user $tmp_ct ($target_ct)"
 
       case "$tmp_proto" in
         ssh)
           # If tmp_ct include a user@host, use that one
-          if echo $tmp_ct | grep '@'
+          if echo $target_ct | grep '@'
           then
-            ssh $tmp_ct "$ccmd"
+            ssh $target_ct "$ccmd"
           else
-            ssh ${tmp_runas}@$tmp_ct "$ccmd"
+            ssh ${tmp_runas}@$target_ct "$ccmd"
           fi
           ;;
         vsh)
           # vsh to the container, vsh_cttoname should have updated
           # ctstate so we can skip updating it (-u) now.
-          $VSH_BIN -u $tmp_ct
+          $VSH_BIN -u $target_ct
           ;;
         lxc)
-          vsh_login $tmp_runas lxc:$tmp_ct "$ccmd"
+          vsh_login $tmp_runas lxc:$target_ct "$ccmd"
           ;;
         *)
           # No proto, use vsh_login to enter local(?) container
-          vsh_login $tmp_runas $tmp_ct "$ccmd"
+          vsh_login $tmp_runas $target_ct "$ccmd"
           ;;
       esac
 
     else
-      ERROR "permission denied for $user@$ct" 
+      LOG "run permission denied for $user@$tmp_ct"
     fi
     ;;
 
@@ -399,9 +404,10 @@ case "$action" in
     vsh_checkperm operations $user startstop
     if [ "$vsh_return" = "allowed" ]
     then
+      LOG "start $ct by $user"
       vsh_start $ct
     else
-      ERROR "start $ct denied for $user" 
+      LOG "start $ct denied for $user"
     fi
     ;;
 
@@ -409,9 +415,10 @@ case "$action" in
     vsh_checkperm operations $user startstop
     if [ "$vsh_return" = "allowed" ]
     then
+      LOG "stop $ct by $user"
       vsh_stop $ct
     else
-      ERROR "stop $ct denied for $user" 
+      LOG "stop $ct denied for $user"
     fi
     ;;
 
@@ -421,4 +428,4 @@ case "$action" in
     ;;
 esac
 
-LOG "_END_"
+LOG "end session: $user"
