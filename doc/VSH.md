@@ -132,6 +132,10 @@ Folder for a shared folder where users can put their .dist.pub-files for distrib
 
 Overrides the hostfile-variable in vsh if you want to point to another (shared) file.
 
+`VSH_KEY`
+
+Same as "vsh -k", this can be useful when using vsh with vcp or rsync.
+
 `VSH_UPDATE`
 
 Set this to 0 or false if you want vsh to NOT do an update. Same things as `vsh -u`
