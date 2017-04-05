@@ -364,11 +364,17 @@ case "$action" in
 
       # Proxy-client or container
       tmp_proto=`echo $ct | sed 's/^\([^:]*\):.*/\1/'`
-      #tmp_ct=`echo $ct | sed 's/^[^:]*:\(.*\)/\1/'`
+      tmp_ct=`echo $ct | sed 's/^[^:]*:\(.*\)/\1/'`
 
       case "$tmp_proto" in
         ssh)
-          ssh ${tmp_runas}@$tmp_ct "$ccmd"
+          # If tmp_ct include a user@host, use that one
+          if echo $tmp_ct | grep '@'
+          then
+            ssh $tmp_ct "$ccmd"
+          else
+            ssh ${tmp_runas}@$tmp_ct "$ccmd"
+          fi
           ;;
         vsh)
           # vsh to the container, vsh_cttoname should have updated

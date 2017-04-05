@@ -127,13 +127,17 @@ startstop:@admins
 
 ### proxy-clients ###
 
-This feature is experimental!
-
 If you want to be able to ssh to hosts as root via vshd you can add them to /opt/vsh/etc/proxy-clients.
 
-You can also let vshd act as a proxy for vsh. Add "* vsh:" to proxy-clients and set up vsh as usual for the user running vshd (typically root). Also make sure that you have the vsh-script in `/opt/vsh/bin/`.
+You should assume that the user "root" is used by default when loggin in. If you want to log in as another user simply add it to the hostname. (See below.)
 
-This can be useful if you have hosts on a NATed network and only have one public IP on the outside. (Maybe. As I stated before, this is experimental and added mostly because "it was possible".)
+The first field is an alias and can be used as an easy to remember name for hosts with long names ot hosts that can not be resolved with dns. It is also possible to use the alias field to create different ways to access a host. (See dbhost1 example below.)
+
+One thing to keep in mind is that if you have several vshd-instances the aliases should all point to the same target, or the vsh-client will act unpredictably. 
+
+You can also let vshd act as a proxy for vsh. Add "* vsh:" to proxy-clients and set up vsh as usual for the user running vshd (typically root). Also make sure that you have the vsh-script in `/opt/vsh/bin/`. (This feature is experimental but "should" work, how practical and/or safe it is could be questioned.)
+
+Using "* vsh:" can be useful if you have hosts on a NATed network and only have one public IP on the outside. (Maybe. As I stated before, this is experimental and added mostly because "it was possible".)
 
 Example `/opt/vsh/etc/proxy-clients`:
 ```
@@ -142,6 +146,8 @@ Example `/opt/vsh/etc/proxy-clients`:
 ns1.some.domain	ssh:ns1.some.domain
 web		ssh:webserver.with.very.long.name.omg
 gw		ssh:192.168.0.1
+dbroot1		ssh:dbhost1
+dbadmin1	ssh:mysql@dbhost1
 
 *	vsh:
 ```
@@ -183,3 +189,7 @@ Users should be encouraged to create new keys and change periodically instead of
 ### Security ###
 
 vsh and vshd are just shell-scripts, there is no guarantee that noone won't be able to get around the privileges setup in `vshd.ini`. Assume that anyone who has a vsh-key added to a host might gain admin access. To keep hosts and containers safe only add administrators you trust to your hosts and let less trustworthy admins access only a sub-set of hosts.
+
+If you are using vshd with only proxy-clients, and no containers that need root-access, you can let vshd run as an unprivileged user by adding a username to the host in the hostlist. Just remember that you might need to change vshprefix=/opt/vsh to something your unprivileged user can access.
+
+This also allows to set up separate vshd-instances on a single machine to let different groups have their own set of trusted keys and proxied clients they may access.
