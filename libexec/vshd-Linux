@@ -80,7 +80,7 @@ vsh_list() {
     # List OpenVZ containers
     if type vzlist > /dev/null 2>&1
     then
-      (vzlist -Hat -o hostname,ctid,status | sed "s/^/`hostname`\t/")
+      (vzlist -Hat -o hostname,ctid,status | sed "s/^/`hostname` /")
     fi
 
     # List LXC containers
