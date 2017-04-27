@@ -239,7 +239,7 @@ case "$action" in
     vsh_checkperm hosts $user `hostname`
     if [ "$vsh_return" = "allowed" ]
     then
-      LOG "hostrun for $user@localhost"
+      LOG "hostrun for $user@$(hostname)"
       if [ "$ccmd" = "" ]
       then
         /bin/bash -il
@@ -247,7 +247,7 @@ case "$action" in
         eval $ccmd
       fi
     else
-      LOG "hostrun permission denied for $user@localhost"
+      ERROR "hostrun permission denied for $user@$(hostname)"
     fi
     ;;
 
@@ -276,7 +276,7 @@ case "$action" in
       # Run module
       . ${moduledir}/$module
     else
-      LOG "module $module denied for $user"
+      ERROR "module $module denied for $user"
     fi
     ;;
 
@@ -287,7 +287,7 @@ case "$action" in
       LOG "move-live $ct to $otherhost by $user"
       vsh_movect live $ct $otherhost
     else
-      LOG "move-live denied for $user"
+      ERROR "move-live denied for $user"
     fi
     ;;
 
@@ -305,7 +305,7 @@ case "$action" in
         vsh_movect live $ct $moveto
       done
     else
-      LOG "moveall-live denied for $user"
+      ERROR "moveall-live denied for $user"
     fi
     ;;
 
@@ -316,7 +316,7 @@ case "$action" in
       LOG "move-ofline $ct to $otherhost by $user"
       vsh_movect offline $ct $otherhost
     else
-      LOG "move-offline denied for $user"
+      ERROR "move-offline denied for $user"
     fi
     ;;
 
@@ -334,7 +334,7 @@ case "$action" in
         vsh_movect offline $ct $moveto
       done
     else
-      LOG "moveall-offline denied for $user"
+      ERROR "moveall-offline denied for $user"
     fi
     ;;
 
@@ -396,7 +396,7 @@ case "$action" in
       esac
 
     else
-      LOG "run permission denied for $user@$tmp_ct"
+      ERROR "run permission denied for $user@$tmp_ct ($target_ct)"
     fi
     ;;
 
@@ -407,7 +407,7 @@ case "$action" in
       LOG "start $ct by $user"
       vsh_start $ct
     else
-      LOG "start $ct denied for $user"
+      ERROR "start $ct denied for $user"
     fi
     ;;
 
@@ -418,7 +418,7 @@ case "$action" in
       LOG "stop $ct by $user"
       vsh_stop $ct
     else
-      LOG "stop $ct denied for $user"
+      ERROR "stop $ct denied for $user"
     fi
     ;;
 
