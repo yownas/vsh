@@ -21,6 +21,17 @@ VSH_BIN=${vshprefix}/bin/vsh
 unset VSH_HOSTFILE
 
 ############################
+# Clean input
+############################
+
+ORIGINAL_COMMAND=$(echo ""|awk '{d=ENVIRON["SSH_ORIGINAL_COMMAND"];
+  if (gsub("[^[:print:]]", "#", d)) {
+    print("usage INVALID INPUT:", d); }
+  else
+   print d
+}')
+
+############################
 # Logging
 ############################
 
@@ -33,7 +44,7 @@ ERROR() {
   exit 1
 }
 
-LOG "ARG: $* CMD: $SSH_ORIGINAL_COMMAND"
+LOG "ARG: $* CMD: $ORIGINAL_COMMAND"
 
 ############################
 # Functions
@@ -71,6 +82,16 @@ From vsh:
   stop <ct>
     Start or stop a container.
 EOF
+
+  # Write out error
+  if [ "$ccmd" != "" ]
+  then
+    echo
+    echo $ccmd
+  else
+    echo
+    echo "Invalid input: $ORIGINAL_COMMAND"
+  fi
 }
 
 ###
@@ -195,8 +216,9 @@ vsh_parse_arg() {
 vsh_parse() {
   for opt in $*; do
     case "$opt" in
+      usage) action=usage; shift; ccmd=$*; break;;
       hostrun) action=hostrun; shift; ccmd=$*; break;;
-      list) action=list; shift;;
+      list) action=list; break;;
       module) action=module; shift; module=$1; shift; ccmd=$*; break;;
       move) action=move; shift; ct=$1; shift; otherhost=$1; break;;
       move-offline) action=move-offline;shift;ct=$1;shift;otherhost=$1;break;;
@@ -205,7 +227,6 @@ vsh_parse() {
       run) action=run; shift; ct=$1; shift; ccmd=$*; break;;
       start) action=start; shift; ct=$1; break;;
       stop) action=stop; shift; ct=$1; break;;
-      --) shift; break;;
     esac
   done
 }
@@ -231,7 +252,7 @@ fi
 vsh_parse_arg $*
 
 # Parse command
-vsh_parse $SSH_ORIGINAL_COMMAND
+vsh_parse $ORIGINAL_COMMAND
 
 case "$action" in
   hostrun)
