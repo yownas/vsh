@@ -1,6 +1,10 @@
 # vsh
 Vad Som Helst (vzsh without the Z)
 
+A tool to manage containers that sometimes is good at managing root on other hosts.
+
+Read doc/QUICKGUIDE for a quick start.
+
 # Installation
 
 Client:
