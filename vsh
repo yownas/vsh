@@ -54,6 +54,23 @@ vsh_athosts() {
   done
 }
 
+# vsh_atct cmd < clientlist.txt
+# Run command on all the target clients taken from stdin.
+vsh_atct() {
+  ccmd=$*
+  for ct in $(uniq);
+  do
+    if [ "$prefix" = "true" ];
+    then
+      VSH_SSH_OPTS="-o LogLevel=QUIET"
+      vsh_run | sed "s/^/$ct /"
+    else
+      VSH_SSH_OPTS="-o LogLevel=QUIET"
+      vsh_run
+    fi
+  done
+}
+
 # vsh_getctname ct
 # Get fqdn or cid for container from dns or statefile
 vsh_getctname() {
@@ -92,6 +109,41 @@ vsh_getctpath() {
   if [ "$vsh_return" = "" ]
   then
     vsh_return=`cat $statefile | awk '{print $2" "$1" "$3}' | grep " $ct$" | head -1 | cut -d" " -f3 | tail -1`
+  fi
+}
+ 
+# ct=<target>
+# ccmd=<command>
+# vsh_run
+# connect to host of target ($ct) and execute command ($ccmd)
+vsh_run() {
+  # Get host of container
+  vsh_gethost $ct
+  vshhost=$vsh_return
+
+  if [ ! "$vshhost" = "" ]
+  then
+    vsh_getctpath $ct
+    tmp_path=$vsh_return
+    if [ "$tmp_path" = "" ]
+    then
+      vsh_getctname $ct
+      ct=$vsh_return
+      vsh_getctpath $ct
+      tmp_path=$vsh_return
+    fi
+    # Add -t to get a tty if we are requesting a shell
+    if [ "$ccmd" = "" ]
+    then
+      VSH_SSH_OPTS="-t"
+    else
+      VSH_SSH_OPTS=""
+    fi
+    # Hopefully we have a host and path here...
+    vsh_ssh $vshhost run $tmp_path $ccmd
+  else
+    echo "run: Container host not found."
+    exit 1
   fi
 }
 
@@ -141,7 +193,7 @@ Options:
 		Select key to use.
 		No suffix will show a list of keys.
         -p
-		Show hostname as prefix when using -o athosts
+		Show hostname as prefix when using -o athosts/atct
 	-u
 		Do not update container states.
 	-q
@@ -169,6 +221,8 @@ Actions:
 		Stop container
         -o athosts <command>
                 Run command on all hosts.
+        -o atct <command> < clientlist.txt
+                Run command on clients taken from stdin.
 	-M <module> [<module-argument>]
 		Run scripts in ~/.vsh/modules/
 	-g [<suffix>]
@@ -612,6 +666,10 @@ case "$action" in
         # $ct & $otherhosts contain the command to run
         vsh_athosts hostrun $ct $otherhosts 
         ;;
+      atct)
+        # $ct & $otherhosts contain the command to run
+        vsh_atct $ct $otherhosts 
+        ;;
       *)
         echo "operation: Unknown command: $ccmd"
         exit 1
@@ -630,34 +688,7 @@ case "$action" in
   run)
     [ "$update" = "true" ] && vsh_updatestate
 
-    # Get host of container
-    vsh_gethost $ct
-    vshhost=$vsh_return
-
-    if [ ! "$vshhost" = "" ]
-    then
-      vsh_getctpath $ct
-      tmp_path=$vsh_return
-      if [ "$tmp_path" = "" ]
-      then
-        vsh_getctname $ct
-        ct=$vsh_return
-        vsh_getctpath $ct
-        tmp_path=$vsh_return
-      fi
-      # Add -t to get a tty if we are requesting a shell
-      if [ "$ccmd" = "" ]
-      then
-        VSH_SSH_OPTS="-t"
-      else
-        VSH_SSH_OPTS=""
-      fi
-      # Hopefully we have a host and path here...
-      vsh_ssh $vshhost run $tmp_path $ccmd
-    else
-      echo "run: Container host not found."
-      exit 1
-    fi
+    vsh_run
     ;;
   template)
     # Check if config exists, otherwise create a new one.

@@ -8,7 +8,7 @@ Options:
 		Select key to use.
 		No suffix will show a list of keys.
         -p
-		Show hostname as prefix when using -o athosts
+		Show hostname as prefix when using -o athosts/atct
 	-u
 		Do not update container states.
 	-q
@@ -36,6 +36,8 @@ Actions:
 		Stop container
         -o athosts <command>
                 Run command on all hosts.
+        -o atct <command> < clientlist.txt
+                Run command on clients taken from stdin.
 	-M <module> [<module-argument>]
 		Run scripts in ~/.vsh/modules/
 	-g [<suffix>]
@@ -108,6 +110,10 @@ Start or stop the container. I leave it as a challenge to the reader to figure o
     -o athosts <command>
 
 Run command on all the hosts in your hosts-file. 
+
+    -o atct <command> < clientlist.txt
+
+Run command on all the target clients taken from stdin. 
 
     -M <module> [<module-argument>]
 
