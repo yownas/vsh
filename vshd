@@ -395,7 +395,7 @@ case "$action" in
       case "$tmp_proto" in
         ssh)
           # If tmp_ct include a user@host, use that one
-          if echo $target_ct | grep '@'
+          if echo $target_ct | grep '@' > /dev/null
           then
             ssh $target_ct "$ccmd"
           else
