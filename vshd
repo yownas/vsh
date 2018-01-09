@@ -392,7 +392,7 @@ case "$action" in
 
       LOG "run $user $tmp_ct ($target_ct)"
 
-      case "$tmp_proto" in
+      case "$target_proto" in
         ssh)
           # If tmp_ct include a user@host, use that one
           if echo $target_ct | grep '@' > /dev/null
