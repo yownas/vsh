@@ -30,7 +30,12 @@ vsh_cttoname() {
       ;;
     *)
       # No proto, assume it is an OpenVZ container
-      vsh_return=`vzlist -Hato hostname $tmp_ct 2> /dev/null` > /dev/null
+      if type prlctl > /dev/null 2>&1
+      then
+        vsh_return=`prlctl list -ao hostname $tmp_ct | tail -n +2 2> /dev/null` > /dev/null
+      else
+        vsh_return=`vzlist -Hato hostname $tmp_ct 2> /dev/null` > /dev/null
+      fi
       ;;
    esac
 }
@@ -57,7 +62,14 @@ vsh_movect() {
       live=""
       ;;
     live)
-      live=`vzlist -Hat | grep " ${ct}\$" | awk '{print $3}'`
+      if type prlctl > /dev/null 2>&1
+      then
+        #live=`prlctl list -ao status,hostname | tail -n +2 | grep " ${ct}\$" | awk '{print $1}'`
+        live="JUNK"
+      elif type vzlist > /dev/null 2>&1
+      then
+        live=`vzlist -Hat | grep " ${ct}\$" | awk '{print $3}'`
+      fi
       if [ "$live" = "running" ]; then
         live="--live"
       else
@@ -66,7 +78,13 @@ vsh_movect() {
       ;;
   esac
 
-  vzmigrate --ssh="-o BatchMode=yes -o StrictHostKeyChecking=no" --remove-area no --keep-dst $live $otherhost $ct
+  if type prlctl > /dev/null 2>&1
+  then
+    prlctl migrate $ct $otherhost --ssh="-o BatchMode=yes -o StrictHostKeyChecking=no"
+  elif type vzmigrate > /dev/null 2>&1
+  then
+    vzmigrate --ssh="-o BatchMode=yes -o StrictHostKeyChecking=no" --remove-area no --keep-dst $live $otherhost $ct
+  fi
 }
 
 ###
@@ -77,8 +95,11 @@ vsh_movect() {
 ###
 
 vsh_list() {
-    # List OpenVZ containers
-    if type vzlist > /dev/null 2>&1
+    # List Virtuozzo/OpenVZ containers
+    if type prlctl > /dev/null 2>&1
+    then
+      (prlctl list -ao hostname,ctid,status | tail -n +2 | sed "s/^/`hostname` /")
+    elif type vzlist > /dev/null 2>&1
     then
       (vzlist -Hat -o hostname,ctid,status | sed "s/^/`hostname` /")
     fi
@@ -113,19 +134,28 @@ vsh_login() {
         lxc-attach -n $tmp_ct -- bash -i
       else
         # Try enter OpenVZ container
-        if type vzctl > /dev/null 2>&1
+        if type prlctl > /dev/null 2>&1
+        then
+          prlctl enter $tmp_ct
+        elif type vzctl > /dev/null 2>&1
         then
           vzctl --quiet enter $tmp_ct
         fi
       fi
     else
-      # Execute command (try LXC, fallback on  OpenVZ)
+      # Execute command (try LXC, fallback on Virtuozzo/OpenVZ)
       if [[ $tmp_ct == "lxc:"* ]]
       then
 	tmp_ct=$(echo $tmp_ct | sed 's/^lxc://')
         lxc-attach -n $tmp_ct -- $tmp_ccmd
       else
-        vzctl --quiet exec $tmp_ct $tmp_ccmd
+        if type prlctl > /dev/null 2>&1
+        then
+          prlctl exec $tmp_ct $tmp_ccmd
+        elif type vzctl > /dev/null 2>&1
+        then
+          vzctl --quiet exec $tmp_ct $tmp_ccmd
+        fi
       fi
     fi
   else
@@ -140,6 +170,7 @@ vsh_login() {
       # "enter" will give you a tty but this will
       # also echo the 'su' command.
       # Ugly, but it works.
+      #FIXME for prlctl
       vzctl --quiet enter $tmp_ct --exec exec su - $tmp_user
     else
       vzctl --quiet exec $tmp_ct su - $tmp_user -- -c \'"$tmp_ccmd"\'
@@ -164,8 +195,14 @@ vsh_start() {
    tmp_ct=$(echo $tmp_ct | sed 's/^lxc://')
    lxc-start -n $tmp_ct -d
   else
-    # Try with OpenVZ as default
-    vzctl start $tmp_ct
+    # Try with Virtuozzo/OpenVZ
+    if type prlctl > /dev/null 2>&1
+    then
+      prlctl start $tmp_ct
+    elif type vzctl > /dev/null 2>&1
+    then
+      vzctl start $tmp_ct
+    fi
   fi
 }
 
@@ -187,6 +224,12 @@ vsh_stop() {
    lxc-stop -n $tmp_ct
   else
     # Try with OpenVZ as default
-    vzctl stop $tmp_ct
+    if type prlctl > /dev/null 2>&1
+    then
+      prlctl stop $tmp_ct
+    elif type vzctl > /dev/null 2>&1
+    then
+      vzctl stop $tmp_ct
+    fi
   fi
 }
