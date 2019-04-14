@@ -630,7 +630,7 @@ case "$action" in
     [ "$update" = "true" ] && vsh_updatestate
     case "$ccmd" in
       3)
-        cat $statefile | awk '{printf("%s %30s %30s %s\n", $1, $2, $3, $4)}'
+        cat $statefile | awk '{printf("%s %30s %40s %s\n", $1, $2, $3, $4)}'
         ;;
       2)
         cat $statefile | awk '{printf("%s@%s\n", $2, $1)}'
