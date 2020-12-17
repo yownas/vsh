@@ -279,7 +279,7 @@ case "$action" in
     # ssh-proxied clients
     if [ -f "$vshdproxy" ]
     then
-      cat $vshdproxy | grep -v ^# | grep ssh: | sed 's/^/'`hostname`' /;s/$/ proxy/'
+      cat $vshdproxy | grep -v ^# | grep ssh: | sed 's/^/'`whoami`@`hostname`' /;s/$/ proxy/'
 
       # Use vsh for proxy
       if grep -v ^# $vshdproxy | grep vsh: > /dev/null
