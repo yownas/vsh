@@ -16,7 +16,8 @@ vshdini=${vshprefix}/etc/vshd.ini
 vshdproxy=${vshprefix}/etc/proxy-clients
 moduledir=${vshprefix}/modulesd
 VSH_BIN=${vshprefix}/bin/vsh
-
+logpriority=info
+errorpriority=err
 # unset this, incase we will act as vsh-proxy
 unset VSH_HOSTFILE
 
@@ -36,11 +37,11 @@ ORIGINAL_COMMAND=$(echo ""|awk '{d=ENVIRON["SSH_ORIGINAL_COMMAND"];
 ############################
 
 LOG() {
-  logger "vshd ($$): $*"
+  logger -p "$logpriority" "vshd ($$): $*"
 }
 ERROR() {
   echo "error: $*"
-  LOG "error: $*"
+  logger -p "$errorpriority" "vshd ($$): error: $*"
   exit 1
 }
 
