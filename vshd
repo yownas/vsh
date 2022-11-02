@@ -395,9 +395,14 @@ case "$action" in
 
       case "$target_proto" in
         ssh)
+          # handle non-standard port
+          # ssh host:port is not supported syntax
+          # modify to ssh host -p port
+          if echo "$target_ct" | grep -q ':'; then
+            target_ct=$(echo $target_ct | sed 's/:/ -p /')
+          fi
           # If tmp_ct include a user@host, use that one
-          if echo $target_ct | grep '@' > /dev/null
-          then
+          if echo $target_ct | grep -q '@'; then
             ssh $target_ct "$ccmd"
           else
             ssh ${tmp_runas}@$target_ct "$ccmd"
