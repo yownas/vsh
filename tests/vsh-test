@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+#
+# vsh-test: run the vsh test suite locally or in CI.
+#
+# Uses the flake as path:<repo> so new, not yet git-added files are included.
+
+set -euo pipefail
+
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+flake="path:$root"
+sys=x86_64-linux
+verbose=false
+
+usage() {
+  cat <<'EOF'
+vsh-test - run the vsh test suite
+
+Usage: vsh-test [-v] <command> [args]
+
+Commands:
+  lint                 shellcheck report (advisory; exits 1 if there are findings)
+  unit [bats-args]     unit tier against the working tree (bats + bwrap, seconds)
+  unit-sandbox         unit tier as the sandboxed Nix check CI runs
+  core                 integration: workstation + 2 LXC vsh-hosts + proxy target
+  onboarding           integration: new admin via `vsh -t`, hardening checks
+  integration          core and onboarding
+  all                  lint (advisory), unit-sandbox, integration
+  interactive <test>   boot <test> (core|onboarding) in the interactive driver;
+                       try start_all(), ws.shell_interact(), test_script()
+  known-bugs           list the KB-n markers and where they are tested
+
+Options:
+  -v                   print full build/VM logs
+
+Examples:
+  vsh-test unit -f 'KB-1'        run unit tests matching a name
+  vsh-test -v core               watch the VMs while the core test runs
+EOF
+}
+
+build() {
+  local args=()
+  $verbose && args+=(-L)
+  nix build "$flake#checks.$sys.$1" --no-link "${args[@]}"
+}
+
+lint() {
+  local out
+  out=$(nix build "$flake#checks.$sys.shellcheck" --no-link --print-out-paths)
+  if [ -s "$out" ]; then
+    cat "$out"
+    echo
+    echo "shellcheck: $(grep -c '^In ' "$out") findings (advisory)"
+    return 1
+  fi
+  echo "shellcheck: clean"
+}
+
+unit() {
+  if command -v bats > /dev/null && command -v bwrap > /dev/null; then
+    bats --print-output-on-failure "$@" "$root/tests/unit"
+  else
+    nix run "$flake#unit" -- "$@"
+  fi
+}
+
+interactive() {
+  local t=${1:-}
+  case "$t" in
+    core | onboarding) ;;
+    *) echo "interactive: expected core or onboarding" >&2; exit 2 ;;
+  esac
+  local drv
+  drv=$(nix build "$flake#checks.$sys.integration-$t.driverInteractive" --no-link --print-out-paths)
+  exec "$drv/bin/nixos-test-driver"
+}
+
+known_bugs() {
+  # "KB-n  file file ..." for every marker, see TODO.md for the details
+  grep -roE 'KB-[0-9]+' "$root/tests/unit" "$root/tests/integration" --include='*.bats' --include='*.py' |
+    sed "s#^$root/##" | sort -u |
+    awk -F: '{f[$2] = f[$2] " " $1} END {for (k in f) print k "\t" f[k]}' | sort -V
+}
+
+while getopts vh opt; do
+  case "$opt" in
+    v) verbose=true ;;
+    h) usage; exit 0 ;;
+    *) usage >&2; exit 2 ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+cmd=${1:-help}
+shift || true
+case "$cmd" in
+  help | -h | --help) usage ;;
+  lint) lint ;;
+  unit) unit "$@" ;;
+  unit-sandbox) build unit && echo "unit: ok" ;;
+  core) build integration-core && echo "integration-core: ok" ;;
+  onboarding) build integration-onboarding && echo "integration-onboarding: ok" ;;
+  integration)
+    build integration-core && echo "integration-core: ok"
+    build integration-onboarding && echo "integration-onboarding: ok"
+    ;;
+  all)
+    lint > /dev/null && echo "shellcheck: clean" || echo "shellcheck: findings (advisory, see: vsh-test lint)"
+    build unit && echo "unit: ok"
+    build integration-core && echo "integration-core: ok"
+    build integration-onboarding && echo "integration-onboarding: ok"
+    ;;
+  interactive) interactive "$@" ;;
+  known-bugs) known_bugs ;;
+  *) echo "unknown command: $cmd" >&2; usage >&2; exit 2 ;;
+esac

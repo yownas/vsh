@@ -1,0 +1,3 @@
+# Proxy clients served by vshhost2. target runs sshd on 22 and 2222.
+gw	ssh:target
+gw2	ssh:target:2222
