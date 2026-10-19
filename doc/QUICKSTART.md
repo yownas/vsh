@@ -1,64 +1,75 @@
-# Quickstart #
+# Quickstart
 
-## Prerequisite ##
+This walk-through goes from nothing to a root shell. For the full details on
+every step, see [INSTALL.md](INSTALL.md).
 
-For this example we need three Un*x machines.
+## Prerequisites
 
-* admin-workstation - Workstation or server that the administrators use.
-* vshd-server - Host, preferably in a DMZ or admin network.
-* client-machine - Any host/server/user-workstation.
+The example uses three Unix machines:
 
-These can all be the same machine if you just want to try vsh, but to make things easier to understand we will refer to the hosts by their role.
+* **admin-workstation**: the machine an administrator works from.
+* **vshd-host**: runs `vshd`. Ideally it sits in a DMZ or on an admin network.
+* **client-machine**: any host you want root on.
 
-First: Clone the vsh git-repo or download a zip/tar file and unpack it.
+They can all be the same machine if you only want to try vsh. The steps below
+still refer to each machine by its role.
 
-```
+You need `bash`, `ssh`, `ssh-keygen`, `ssh-agent` and `awk` everywhere, plus
+`host` (from bind-utils/dnsutils) on the workstation.
+
+Get the code on the admin-workstation and the vshd-host:
+
+```sh
 cd ~
 git clone https://github.com/yownas/vsh.git
 ```
 
-## Client installation and key generation ##
+## 1. Client installation and key generation
 
-```
-# On the admin-workstation as a regular user.
+On the **admin-workstation**, as your regular user:
 
-cd ~
-mkdir bin
-cp ~/vsh/vsh ~/bin
+```sh
+mkdir -p ~/bin
+cp ~/vsh/vsh ~/bin/
+export PATH=$PATH:~/bin        # vsh calls itself as "vsh", so it must be in $PATH
 
-export PATH=${PATH}:~/bin
+# Make sure ~/.ssh and known_hosts exist
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+touch ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
 
-# Make sure you have a .ssh folder and a known_hosts file
-mkdir ~/.ssh
-chmod 600 ~/.ssh
-touch ~/.ssh/known_hosts
-chmod 600 ~/.ssh/known_hosts
-
-# Generate templates and your default user-key. Make sure to set
-# a GOOD password, this will be your personal root-password.
-
+# Create ~/.vsh, an empty hostfile and your keys.
+# Pick a GOOD passphrase: this key is effectively your root password.
 vsh -t
 ```
 
-We are done here, for now.
-
-## Vsdh-server installation and key distribution ##
-
+`vsh -t` ends by printing a line like this:
 
 ```
-# On the vshd-host as root.
+command="/opt/vsh/bin/vshd user=alice" ssh-rsa AAAA...  vsh-alice-user
+```
 
-mkdir -p /opt/vsh/bin
-mkdir -p /opt/vsh/etc
-mkdir -p /opt/vsh/libexec
+You can print it again at any time with `vsh -g`.
 
-cp ~/vsh/vshd /opt/vsh/bin
-cp ~/vsh/libexec/* /opt/vsh/libexec
+## 2. vshd-host installation
 
-# Create minimal vshd.ini
-cat <<EOF > /opt/vsh/etc/vshd.ini
+On the **vshd-host**, as root:
+
+```sh
+mkdir -p /opt/vsh/{bin,etc,libexec,modulesd}
+cp ~/vsh/vshd          /opt/vsh/bin/
+cp ~/vsh/libexec/*     /opt/vsh/libexec/
+chmod 755 /opt/vsh/bin/vshd /opt/vsh/libexec/*
+cp ~/vsh/etc/vshd.ini  /opt/vsh/etc/
+
+# Replace "your_username" with the user name from the command="..." line
+vi /opt/vsh/etc/vshd.ini
+```
+
+The minimal `vshd.ini` gives the `wheel` group access to everything:
+
+```ini
 [groups]
-wheel=YOUR_USERNAME_HERE
+wheel:alice
 
 [containers]
 *:@wheel
@@ -72,71 +83,62 @@ startstop:@wheel
 
 [modules]
 *:@wheel
-EOF
-
-# Do not forget to set your username!
-# (The one you have on the admin-workstation)
-vi /opt/vsh/etc/vshd.ini
-
 ```
 
-Copy the vsh-key from the user at the admin-workstation.
+Paste the `command="..."` line from step 1 into `~root/.ssh/authorized_keys`,
+prefixed with `restrict,pty,` so the key cannot be used for port
+forwarding (see [INSTALL.md](INSTALL.md#3-install-user-keys)):
 
 ```
-# On the admin-workstation as the regular user.
-
-# Get the user key
-
-vsh -g user
+restrict,pty,command="/opt/vsh/bin/vshd user=alice" ssh-rsa AAAA...  vsh-alice-user
 ```
 
-Paste it into ~root/.ssh/authorized_keys on the vshd-server.
+## 3. Connect
 
+Back on the **admin-workstation**:
 
-```
-# Add the vshd-host to your host-list
+```sh
 echo vshd-host.local.domain >> ~/.vsh/hosts
 
-# Get ssh-keys from the hosts
+# Running -t again with a non-empty hostfile collects the hosts' SSH host keys
 vsh -t
 
-# Try to connect and run a command
-vsh -p -o athosts uptime
-
-# Get a shell...
-vsh vsh-host
+vsh -p -o athosts uptime     # run a command on every vsh-host
+vsh -l                       # list containers
+vsh vshd-host.local.domain   # root shell on the vsh-host
 ```
 
-## Add a proxy-client ##
+All OpenVZ/Virtuozzo containers, LXC containers or Solaris zones on the
+vshd-host are now listed by `vsh -l`, and you can enter them with
+`vsh <name>`.
 
-Any OpenVZ, LXC, or Solaris-zone on the vshd-host should be available automatically.
-To add a proxy-client we need to enable root-login from the vshd-host to the client-machine.
+## 4. Add a proxy client
 
-```
-# On the vshd-host as root
+To give root on an ordinary machine without a container runtime, let the
+vshd-host SSH into it as root.
 
-# Generate ssh-keys for root, if you do not have any.
-ssh-keygen
+On the **vshd-host**, as root:
 
-# Copy public key. This should be the last time you need
-# the root password for the client-machine.
+```sh
+# Generate root's ssh key if there is none
+[ -f ~/.ssh/id_rsa ] || ssh-keygen
+
+# This should be the last time you need client-machine's root password
 ssh-copy-id client-machine.local.domain
 
-# Add the client-machine to the list of proxy-clients
-# Entries should be added in the format:
-# <host> ssh:<host>
-
-touch /opt/vsh/etc/proxy-clients
-echo "client-machine.local.domain ssh:client-machine.local.domain" >> /opt/vsh/etc/proxy-clients
+# <alias> ssh:<host>
+echo "client-machine ssh:client-machine.local.domain" >> /opt/vsh/etc/proxy-clients
 ```
 
-```
-# On the admin-workstation as regular user
+On the **admin-workstation**:
 
-# Try listing the proxied client
-vsh -l
-
-# Log in as root on client-machine
-vsh client-machine
+```sh
+vsh -l                  # client-machine now appears, with status "proxy"
+vsh client-machine      # root shell on client-machine
 ```
-If everything works, you should have a root-shell on the client-machine now. :)
+
+## Next steps
+
+* Give other admins access and set up roles: [VSHD-INI.md](VSHD-INI.md)
+* Day-to-day usage: [USAGE.md](USAGE.md)
+* All client flags: [VSH.md](VSH.md)

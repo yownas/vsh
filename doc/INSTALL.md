@@ -1,195 +1,238 @@
-# Installation #
+# Installation
 
-All the examples below use the default installation paths. You are free to change these.
+For the short version, see [QUICKSTART.md](QUICKSTART.md). This page covers
+each step in detail, plus the options. All examples use the default paths:
+the client keeps everything in `~/.vsh/` and the server lives in `/opt/vsh/`.
 
-## Client ##
+## Requirements
 
-First you need to place the vsh script somewhere you can run it. If you are a single user on a single machine you can place it in ~/bin/ or if it is a shared machine, anywhere where all admins can access it like /usr/bin or any other folder in $PATH.
+| Where | Needs |
+| --- | --- |
+| Client | `bash`, OpenSSH client (`ssh`, `ssh-keygen`, `ssh-agent`, `ssh-add`, `ssh-keyscan`), `awk`, `sed`, `host` (DNS lookups) |
+| vsh-host | `bash`, OpenSSH server, `logger`, and a container runtime: OpenVZ (`vzctl`/`vzlist`/`vzmigrate`), Virtuozzo (`prlctl`), LXC (`lxc-ls`, `lxc-attach`, `lxc-info`, ...) or Solaris zones (`zoneadm`, `zlogin`). A host used only for proxying needs no runtime. |
+| Containers (only for `vsh -x`) | `/usr/sbin/sshd` and X11 client libraries/`xauth` inside the container |
 
-To set up a template and create your first user key simply run: vsh -t
+## Client
+
+### 1. Install the script
+
+Put `vsh` somewhere in `$PATH`. That can be `~/bin` for a single user, or
+`/usr/local/bin` or `/usr/bin` on a shared admin machine. It **must** be
+callable as `vsh`, because the script calls itself (`vsh -H`) to tell hosts
+and containers apart.
+
+Optionally install the helpers from `contrib/` (see [CONTRIB.md](CONTRIB.md)).
+
+### 2. Create the template and your keys
 
 ```
-# vsh -t
-/home/user/.vsh/hosts created.
+$ vsh -t
+/home/alice/.vsh/hosts created.
 
 Please add vsh-hosts to this file.
 
-ctstate-folder exist. Skipping.
 Creating default keys:
-Enter passphrase (empty for no passphrase): 
-Enter same passphrase again: 
-/home/user/.vsh/keys/vsh-user-user generated
+Enter passphrase (empty for no passphrase):
+Enter same passphrase again:
+/home/alice/.vsh/keys/vsh-alice-user generated
 
 Distribute this to ~root/.ssh/authorized_keys on all vsh-hosts:
 
-command="/opt/vsh/bin/vshd user=user" ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDH7rWth7g7mlpV5BxDgry8Zj/WSg74HcsaqMCAlcfYqy+p7b6rv9KYOmfKKhArExHEnLhLs1tCmTMyAxnk08Aq57mUzUu8VnUiy0DZm6G65SnzucMkN9OWtqRp8f4hTNXLKm1WYUWc70HuxRF7kQxE6eTpCV8EJppKcRWNB08ICmZU+u1ZGyemVVkwDCTqNqg20XIQNyCGKOcBnu2Iiu2oHu9RBz/Dy7R1/61EQLQ8z5MEB+dYg4MJb+rZ3/TYhoV/2W/yW2P6bLW2Y10Jl2kLWjyPDpr5Ru6hNFk5vKNmw3dbhe3w1OhaD7sMgGX7Ae+Mm39r9HhkTOpACy4Xkgp1 vsh-user-user
+command="/opt/vsh/bin/vshd user=alice" ssh-rsa AAAAB3NzaC1yc2E... vsh-alice-user
 ```
 
-If you feel that you need more roles, create more keys with `vsh -g <role>`.
+`vsh -t` creates:
 
-Add hosts to `~/.vsh/hosts`:
+* `~/.vsh/hosts`: an empty hostfile.
+* `~/.vsh/var/`: the state directory.
+* `~/.vsh/keys/`, holding:
+  * an **X11 key**, without a passphrase, used only by `vsh -x`. It is never distributed.
+  * your **user key**, which you should give a strong passphrase. Its
+    `.dist.pub` file is what you hand to the vsh-host administrators.
 
-```
-# hosts file
-vsh-host1	# You can put comments here
-vsh-host2
-#unused-vsh-host
-```
+Need more roles? Run `vsh -g <role>`, for example `vsh -g admin`. That
+creates `vsh-alice-admin.dist.pub` with `user=alice+admin`. See
+[VSHD-INI.md → Roles](VSHD-INI.md#roles).
 
-Distribute keys with the suffix .dist.pub to the vsh-server (see below). If this is to be used in an environment with several admins you might want to use some kind of script that gather keys, check them and creates a authorized_keys file to be distributed by cfengine or puppet to your vsh-servers. 
-
-## Server ##
-
-To set up a vshd, download vsh and create some folders.
+### 3. Fill in the hostfile
 
 ```
-mkdir -p ~/sandbox
-cd ~/sandbox
-git clone git://github.com/yownas/vsh
-mkdir -p /opt/vsh/{bin,etc,libexec}
+# ~/.vsh/hosts
+# Only the first word of each line is used; the rest is a free-form comment.
+vsh-host1.example.com     # rack 3
+vsh-host2.example.com     00:11:22:33:44:55   (MAC, used by the wol module)
+proxyuser@jump.example.com  # connect as a non-root user (see below)
+#retired-host.example.com
 ```
 
-Install `vshd` script and dependencies:
+* By default `vsh` connects as `root`. Use `user@host` to connect to a
+  `vshd` that runs as an unprivileged user.
+* Several admins can share one file. Point `VSH_HOSTFILE` at it.
 
-```
+### 4. Collect host keys
+
+Run `vsh -t` again. Now that the hostfile is not empty, it runs
+`ssh-keyscan` against every host and merges the result into
+`~/.ssh/known_hosts`. It also keeps a backup as
+`~/.ssh/known_hosts.vshtmp`. `vsh` relies on known host keys, since it
+never asks interactively.
+
+`ssh-keyscan` ignores `~/.ssh/config` and cannot handle `user@host`
+entries. For such hosts, and for hosts on a non-standard port, connect once
+by hand to accept the host key, e.g.
+`ssh -i ~/.vsh/keys/vsh-$USER-user proxyuser@jump.example.com list`.
+
+### 5. Hand over your key
+
+Send `~/.vsh/keys/vsh-<login>-*.dist.pub` to your vsh administrators. If the
+team uses a shared drop folder, `vsh -d` copies all of your `.dist.pub`
+files there (default `/tmp/<login>/`, or set `VSH_DISTKEYFOLDER`).
+
+## Server (vsh-host)
+
+### 1. Lay out `/opt/vsh`
+
+```sh
+git clone https://github.com/yownas/vsh.git ~/sandbox/vsh
+mkdir -p /opt/vsh/{bin,etc,libexec,modulesd}
+
 cd ~/sandbox/vsh
-cp -p vshd /opt/vsh/bin/
-cp -p libexec/* /opt/vsh/libexec
-``` 
-
-Create config file. **TODO:** Include sampe ini file in 
-vsh distribution.
-
-```
-cat <<EOF >/opt/vsh/etc/vshd.ini
-# Groups.
-# Format: group:user1[[,user2],user3]
-[groups]
-
-# List of containers. Need to be fqdn of container or * (any)
-# Format: fqdn:user1|@group1[,user2|@group2]
-[containers]
-
-# vsh hosts. fqdn or * (any)
-# Format: fqdn:user1|@group1[,user2|@group2]
-[hosts]
-
-# Operations permissions
-[operations]
-
-# Module persmissions
-[modules]
-EOF
+cp -p vshd                /opt/vsh/bin/
+cp -p libexec/*           /opt/vsh/libexec/
+cp -p etc/vshd.ini        /opt/vsh/etc/
+cp -p etc/proxy-clients   /opt/vsh/etc/    # optional, see PROXY-CLIENTS.md
+cp -p modulesd/*          /opt/vsh/modulesd/  # optional, see MODULES.md
+cp -p vsh                 /opt/vsh/bin/    # only for "* vsh:" proxying
+chmod 755 /opt/vsh/bin/* /opt/vsh/libexec/*
 ```
 
-
-### vshd.ini ###
-
-The example below we have three users, Alice, Bob and Eve.
-
-Alice and Bob are members of the wheel-group and have access to all
-containers and modules.
-Alice is also a member of the admin-group, but has to use a separate key named "admin" to access that role. That group has access to actions as move-container (OpenVZ only) and start/stop. It also has access to all "hosts" which means that she is allowed to log in on the host running vshd.
-
-Under [hosts] you can use * or a hostname. Typically you would use * but if you want to limit access to a subset of hosts you can set a hostname and let your configuration tool like cfengine or puppet push it out to all your hosts. Users will only be allowed to access hosts where both hostname and user/group matches.
-
-The user Eve only has access to the container syslog.domain and will get logged in as the user "logmaster" instead of root.
-
-Example `/opt/vsh/etc/vshd.ini`:
+Resulting tree:
 
 ```
-# Groups.
-# Format: group:user1[[,user2],user3]
+/opt/vsh/
+├── bin/
+│   ├── vshd
+│   └── vsh                 (optional)
+├── etc/
+│   ├── vshd.ini
+│   └── proxy-clients       (optional)
+├── libexec/
+│   ├── vshd-Linux          (chosen by `uname`, must be executable)
+│   ├── vshd-SunOS
+│   └── vshd-FreeBSD
+└── modulesd/               (optional)
+```
+
+`vshd` picks the backend `libexec/vshd-$(uname)` and stops with
+`error: ... not found` if that file is missing or not executable.
+
+To install somewhere other than `/opt/vsh`, change `vshprefix` at the top
+of `vshd`. Also change the `command="..."` path in every key, because
+`vsh -g` hard-codes `/opt/vsh/bin/vshd`. See [VSHD.md](VSHD.md#configuration-variables).
+
+### 2. Write `vshd.ini`
+
+See [VSHD-INI.md](VSHD-INI.md) for the full reference. A minimal file
+looks like this:
+
+```ini
 [groups]
 wheel:alice,bob
-admins:alice+admin
 
-# List of containers. Need to be fqdn of container or * (any)
-# Format: fqdn:user1|@group1[,user2|@group2]
 [containers]
 *:@wheel
-syslog.domain:eve=logmaster
 
-# vsh hosts. fqdn or * (any)
-# Format: fqdn:user1|@group1[,user2|@group2]
 [hosts]
-*:@admins
+*:@wheel
 
-# Operations permissions
 [operations]
-move:@admins
-startstop:@admins
+move:@wheel
+startstop:@wheel
 
-# Module persmissions
 [modules]
 *:@wheel
 ```
 
-### proxy-clients ###
+### 3. Install user keys
 
-If you want to be able to ssh to hosts as root via vshd you can add them to /opt/vsh/etc/proxy-clients.
-
-You should assume that the user "root" is used by default when loggin in. If you want to log in as another user simply add it to the hostname. (See below.)
-
-The first field is an alias and can be used as an easy to remember name for hosts with long names ot hosts that can not be resolved with dns. It is also possible to use the alias field to create different ways to access a host. (See dbhost1 example below.)
-
-One thing to keep in mind is that if you have several vshd-instances the aliases should all point to the same target, or the vsh-client will act unpredictably. 
-
-You can also let vshd act as a proxy for vsh. Add "* vsh:" to proxy-clients and set up vsh as usual for the user running vshd (typically root). Also make sure that you have the vsh-script in `/opt/vsh/bin/`. (This feature is experimental but "should" work, how practical and/or safe it is could be questioned.)
-
-Using "* vsh:" can be useful if you have hosts on a NATed network and only have one public IP on the outside. (Maybe. As I stated before, this is experimental and added mostly because "it was possible".)
-
-Example `/opt/vsh/etc/proxy-clients`:
-```
-# <alias>	ssh:<hostname|fqdn|ip>
-# *		vsh:
-ns1.some.domain	ssh:ns1.some.domain
-web		ssh:webserver.with.very.long.name.omg
-gw		ssh:192.168.0.1
-dbroot1		ssh:dbhost1
-dbadmin1	ssh:mysql@dbhost1
-
-*	vsh:
-```
-
-### User keys ###
-
-To allow users to run vshd you need to add their vsh-keys to ~root/.ssh/authorized_keys. Make sure that all the keys has a proper command-option at the beginning and that the path to vshd is correct and that "user=<username>" is set to the user you expect.
-
-Example below has one user with two keys, one with the default user-role and the second with the admin-role.
-
-Example: `~root/.ssh/authorized_keys`:
+Append each user's `.dist.pub` line(s) to `~root/.ssh/authorized_keys`:
 
 ```
-command="/opt/vsh/bin/vshd user=alice" ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDP59ep36DGG6A7UpGc4/YG/IbfwcCHsTLy5bNafAAsjBB09zk
-BCArA8U7XCLbtY4fEpEFzPqhWBh8xVYC0Uh35rR/KTMTMKFacRul7t7iGiBvVb/bDOgOBqrSwgB0f2dYe8s0BEGCf3i3yJ1CP2TavoXbtaGCE8ionP7+6kAroSo1
-rTquN4gCC1+tBslLUp7LzhgSgNmVKEQ2ra9ZM7GqTOiPP vsh-alice-user
-command="/opt/vsh/bin/vshd user=alice+admin" ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCzT9fH7Pka6C6rVdxcRT7GVM483bzDkmbyErz4GPKS2
-HFeZNM/+CUGcps/ZBTnoqx6ncw9lF4lqnv1NT+mII940yqiEuLrqH01vReyWclWUJFIKDuX4q7XVFPkp059hhzZ4oGYLDLQYJaGqcmBFggSdJW17GxwvpQL1ew5D
-x9+PffEqZ6/5Jfzm7TT9/IuKXOPDRWpivJYxrfQYvW92mIJaAm5 vsh-alice-admin
+command="/opt/vsh/bin/vshd user=alice" ssh-rsa AAAAB3Nza...P vsh-alice-user
+command="/opt/vsh/bin/vshd user=alice+admin" ssh-rsa AAAAB3Nza...5 vsh-alice-admin
 ```
 
-If you've come this far you should now be able to run vsh -l and see a list of containers (and proxied hosts). :)
+A forced command does **not** stop a key from forwarding ports. Without
+further options, any vsh user can run `ssh -N -L ...` and tunnel through
+the vsh-host as root. vsh needs none of these features on this hop, so
+prefix every line with restrictions when you install it:
 
-### User key distribution ###
+```
+restrict,pty,command="/opt/vsh/bin/vshd user=alice" ssh-rsa AAAAB3Nza...P vsh-alice-user
+```
 
-The security of vsh is based on how it uses ssh-keys for authentication. When you distribute the dist.pub-keys from users you MUST check a couple of things.
+On OpenSSH older than 7.2, which lacks `restrict`, use
+`no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-user-rc`
+instead.
 
-* The name after user= in `command="/opt/vsh/bin/vshd user=alice"` MUST be the same as the username that owns the file.
-* The command in `command="/opt/vsh/bin/vshd user=alice"` MUST be `/opt/vsh/bin/vshd` unless you set another path.
-* The command and argument in `command="/opt/vsh/bin/vshd user=alice"` MUST not be anything other than the path to vshd and the `user=<username>` argument.
-* The file MUST be owned by the correct user and only writable by that user. Not group or world writable.
-* The comment should also contain the name, but it is only a comment and not really needed.
-* Do not add users to hosts that they do not need access to or that contain containers that they are not allowed to access.
+sshd must allow root logins with keys (`PermitRootLogin prohibit-password`
+or `forced-commands-only`). `forced-commands-only` is the tightest
+setting, and it works for vsh because every vsh key carries a
+`command=`.
 
-If you have several users you can check if any of the keys are the same. They shouldn't be and could mean that someone is trying to give another user his/her privileges.
+For a proxy-only host, consider running `vshd` as an unprivileged user
+instead. See [Running vshd without root](#running-vshd-without-root).
 
-Users should be encouraged to create new keys and change periodically instead of just setting a new password on the old keys.
+### Vetting keys before installing them
 
-### Security ###
+The whole security model depends on this step. For every `.dist.pub` you
+receive, check:
 
-vsh and vshd are just shell-scripts, there is no guarantee that noone won't be able to get around the privileges setup in `vshd.ini`. Assume that anyone who has a vsh-key added to a host might gain admin access. To keep hosts and containers safe only add administrators you trust to your hosts and let less trustworthy admins access only a sub-set of hosts.
+* The `user=` value is the identity this person should have. A user can
+  edit their `.dist.pub` and write `user=bob`.
+* The command is exactly `/opt/vsh/bin/vshd user=<name>`, with no other
+  arguments. Ignore any options the user wrote into the key line and apply
+  your own (`restrict,pty`, see above).
+* The file came from its owner, for example it is owned by and writable
+  only by that user if you collect from a shared folder.
+* No two people share a key: compare the key material. A duplicate may mean
+  someone is trying to pass their privileges to another person.
+* Install keys only on hosts the user actually needs.
 
-If you are using vshd with only proxy-clients, and no containers that need root-access, you can let vshd run as an unprivileged user by adding a username to the host in the hostlist. Just remember that you might need to change vshprefix=/opt/vsh to something your unprivileged user can access.
+With many admins, script this step: gather the files, check them, build
+`authorized_keys` and push it with Puppet, Ansible or cfengine. Encourage
+users to rotate keys (`rm ~/.vsh/keys/vsh-$USER-user*; vsh -g`) rather
+than only changing the passphrase.
 
-This also allows to set up separate vshd-instances on a single machine to let different groups have their own set of trusted keys and proxied clients they may access.
+### 4. Test
+
+```sh
+vsh -p -o athosts hostname
+vsh -l
+```
+
+If you get `permission denied`, check `vshd.ini` and the syslog on the
+vsh-host (see [TROUBLESHOOTING.md](TROUBLESHOOTING.md)).
+
+## Running vshd without root
+
+If a `vshd` only proxies SSH connections and never enters local containers,
+it does not need root:
+
+1. Create a user such as `vshproxy` and install vsh under a path it can
+   read, then set `vshprefix` in its copy of `vshd`.
+2. Put the vsh keys in `~vshproxy/.ssh/authorized_keys`, with `command=`
+   pointing at that `vshd`.
+3. Give `vshproxy` its own SSH key on the proxy clients.
+4. In the clients' hostfiles, write `vshproxy@jump.example.com`.
+
+This way one machine can also run **several independent `vshd`
+instances**, each with its own users, keys, `vshd.ini` and proxy list. For
+example, the network team and the DBA team can each have their own.
+
+## Upgrading
+
+Copy the new `vsh`, `vshd` and `libexec/*` over the old ones. `vshd.ini`,
+`proxy-clients`, keys and the hostfile keep their format. Keep the
+client and the servers at roughly the same version, because the protocol
+between them is just the action words listed in [VSHD.md](VSHD.md#actions).
