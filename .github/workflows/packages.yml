@@ -42,6 +42,8 @@ jobs:
           CLIENT: ${{ inputs.client }}
           HOST: ${{ inputs.host }}
           PROXY: ${{ inputs.proxy }}
+          # A tag build takes its version from that tag (see packaging/build)
+          VSH_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
           pkgs=()
           [ "${CLIENT:-true}" = true ] && pkgs+=(client)
@@ -150,12 +152,25 @@ jobs:
           name: packages
           path: dist
 
+      # Only a plain v<version> tag (v1.4.0) is a full release; anything with
+      # a suffix (v1.4.0-rc1, v1.4.0-beta.2) is a pre-release. An existing
+      # release is marked as a pre-release too, but never unmarked.
       - name: Attach packages to the release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
         run: |
-          gh release view "$TAG" > /dev/null 2>&1 ||
-            gh release create "$TAG" --verify-tag --generate-notes
+          pre=true
+          [[ $TAG =~ ^v[0-9]+(\.[0-9]+)*$ ]] && pre=false
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            [ "$pre" = false ] || gh release edit "$TAG" --prerelease
+          else
+            gh release create "$TAG" --verify-tag --generate-notes --prerelease="$pre"
+          fi
+          # GitHub turns "~" in asset names into ".", so vsh-1.4.0~rc1 would
+          # look like a version after 1.4.0. The version inside keeps the ~.
+          for f in dist/*~*; do
+            [ -e "$f" ] && mv "$f" "${f//\~/_}"
+          done
           gh release upload "$TAG" dist/*.rpm dist/*.deb dist/*.apk --clobber
