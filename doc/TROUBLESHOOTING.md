@@ -24,10 +24,8 @@
 | Role key denied but user key works | `alice+admin` is a separate user. Add it to the groups or rules it needs. |
 | `error: /opt/vsh/libexec/vshd-<OS> not found` | Backend not copied, or not executable (`chmod 755`). |
 | `Permission denied (publickey)` | Key not in `~root/.ssh/authorized_keys`, sshd forbids root logins (`PermitRootLogin`), or the hostfile has the wrong `user@`. |
-| Asked for a passphrase on every call, even after `vsh -a` | vsh cannot tell that the key is loaded and re-adds, then removes, it on every call. Set each key's comment to its path: see [VSH.md → Known problem](VSH.md#known-problem-the-key-is-never-seen-as-loaded). Also make sure an agent is reachable (`ssh-add -l`). |
+| Asked for a passphrase on every call, even after `vsh -a` | No agent can be reached (`ssh-add -l`), or the key's lifetime (`VSH_KEYLIFE`) has run out. |
 | Passphrase asked again halfway through a long `atct`/`athosts`/`qc` run | The temporary key only lives 30 seconds. Load it with `vsh -a` first. |
-| Stale `~/.vsh/var/<fqdn>.agent` after reboot | Delete the file. vsh starts a new agent. |
-| Temporary agent or key left behind after vsh exits on an error | Cleanup only runs at the normal end of the script ([upstream #6](https://github.com/yownas/vsh/issues/6)). Kill the agent by hand, or wait for the 30-second key lifetime to expire. |
 | Output appears late, or all at once at the end, when piped (`vsh ct cmd \| grep`, `-p`, `atct`) | The remote program buffers its output because it is not writing to a TTY ([upstream #9](https://github.com/yownas/vsh/issues/9)). Force line buffering on the remote side: `vsh ct 'stdbuf -oL tail -f /var/log/messages' \| grep error`. |
 | `vsh -x`: `Can not find X11-keys!` | `vsh -g X11`. |
 | `vsh -x` fails inside the container | The container needs `/usr/sbin/sshd` and `xauth`, and the remote user needs a home directory. A `Deprecated option UsePrivilegeSeparation` warning from OpenSSH 7.5+ is harmless. |
@@ -48,10 +46,6 @@
   [VSHD-INI.md → What is not access controlled](VSHD-INI.md#what-is-not-access-controlled).
 * **Globs in commands expand on the vsh-host**, not in the container. See
   [VSH.md → Run in a container](VSH.md#run-in-a-container).
-* **The key-loaded check fails for keys made by OpenSSH 7.8 or later**,
-  so vsh asks for the passphrase on every call and removes keys loaded
-  with `-a`. See [VSH.md → Known problem](VSH.md#known-problem-the-key-is-never-seen-as-loaded)
-  for a workaround.
 * **No deny rules** in `vshd.ini`. You can only grant access
   ([upstream #7](https://github.com/yownas/vsh/issues/7)).
 * **The authorization logic is shell code.** Assume that root on a vsh-host

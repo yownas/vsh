@@ -71,6 +71,42 @@ vsh_atct() {
   done
 }
 
+# vsh_reachvshagent
+# Test if the vsh-agent in $VSH_AUTH_SOCK can be reached.
+vsh_reachvshagent() {
+  env SSH_AUTH_SOCK="$VSH_AUTH_SOCK" ssh-add -l > /dev/null 2>&1
+  [ $? -le 1 ]
+}
+
+# vsh_addkey ssh-add-args
+# ssh-add, asking for the passphrase on the terminal also when stdin is
+# piped (ssh-add only asks if stdin is a terminal).
+vsh_addkey() {
+  if [ \! -t 0 ] && { : < /dev/tty; } 2> /dev/null
+  then
+    ssh-add "$@" < /dev/tty
+  else
+    ssh-add "$@"
+  fi
+}
+
+# vsh_cleanup
+# Remove temporary key and ssh-agent, and the vsh-agent lock. Run on exit.
+vsh_cleanup() {
+  if [ -n "$vsh_agentlock" ]
+  then
+    rmdir "$vsh_agentlock" 2> /dev/null
+  fi
+  if [ "$vsh_tmpagentkey" = "yes" ]
+  then
+    ssh-add -d ${keyfile}.pub 2> /dev/null
+  fi
+  if [ "$vsh_tmpagent" = "yes" ]
+  then
+    eval `ssh-agent -sk` > /dev/null
+  fi
+}
+
 # vsh_getctname ct
 # Get fqdn or cid for container from dns or statefile
 vsh_getctname() {
@@ -421,26 +457,40 @@ keyfile=`echo $keyfile_name | sed "s/SUFFIX/${keysuffix}/"`
 
 if [ "$needconf" = "yes" ]
 then
-  
+  # Clean up temporary ssh-agent and keys however we exit.
+  trap vsh_cleanup EXIT
+
   # Test if we can't reach ssh-agent
   ssh-add -l > /dev/null 2>&1
   vsh_result=$?
-  if [ \! "$vsh_result" = "0" -a \! "$vsh_result" = "1" ]
+  if [ \! "$vsh_result" = "0" -a \! "$vsh_result" = "1" ] && type vsh-agent > /dev/null 2>&1
   then
     # Try to find vsh-agent from file in $statedir
     agentfile="$statedir/$(hostname -f).agent"
-    mkdir -p $statedir
-    if [[ -f "$agentfile" ]]; then
-      source $agentfile
-      proc=$(ps -C "ssh-agent" -f | grep " $VHS_AGENT_PID "|  grep "$USER")
-      # File found but no live ssh-agent process
-        if [[ -z "$proc" ]]; then
-          eval $(vsh-agent) > /dev/null
-          vsh-agent -e | grep -e '^export'  > $agentfile
-        fi
-    else
-      eval $(vsh-agent) > /dev/null
-      vsh-agent -e | grep -e '^export'  > $agentfile
+    [ -f "$agentfile" ] && source "$agentfile"
+    # Start a new vsh-agent if the saved one can not be reached (no file,
+    # agent died, socket removed, ...)
+    if ! vsh_reachvshagent
+    then
+      # Only one vsh at a time may start it, the others use that one.
+      # A lock held for more than 10 seconds was left by a killed vsh.
+      mkdir -p $statedir
+      tmp_tries=0
+      until mkdir "$agentfile.lock" 2> /dev/null
+      do
+        tmp_tries=$((tmp_tries + 1))
+        [ $tmp_tries -gt 10 ] && rmdir "$agentfile.lock" 2> /dev/null
+        sleep 1
+      done
+      vsh_agentlock="$agentfile.lock"
+      [ -f "$agentfile" ] && source "$agentfile"
+      if ! vsh_reachvshagent
+      then
+        eval $(vsh-agent) > /dev/null
+        vsh-agent -e | grep -e '^export' > "$agentfile.$$" && mv -f "$agentfile.$$" "$agentfile"
+      fi
+      rmdir "$vsh_agentlock"
+      vsh_agentlock=""
     fi
   fi
 
@@ -462,7 +512,7 @@ then
     # Add key to external ssh-agent
     if [ "$addkey" = "true" ]
     then
-      ssh-add -t $keylife $keyfile 2> /dev/null
+      vsh_addkey -t $keylife $keyfile 2> /dev/null
     fi
   else
     # Start a temporary ssh-agent.
@@ -471,16 +521,16 @@ then
   fi
 
   # Add key to ssh-agent
-  if (ssh-add -L | grep $keyfile > /dev/null)
+  # ssh-add shows the key's comment, not its path, so compare fingerprints.
+  keyfp=$(ssh-keygen -lf "${keyfile}.pub" 2> /dev/null | awk '{print $2}')
+  if [ -n "$keyfp" ] && ssh-add -l 2> /dev/null | awk '{print $2}' | grep -qxF "$keyfp"
   then
     vsh_tmpagentkey=no
   else
     vsh_tmpagentkey=yes
     # Add temporary key with a timeout of 30 seconds
     # should be more than enough.
-    ssh-add -t 30 $keyfile 2> /dev/null
-    # FIXME: It seems to be a problem here, if you pipe something
-    # through vsh it will skip this step.
+    vsh_addkey -t 30 $keyfile 2> /dev/null
   fi
 fi
 
@@ -806,16 +856,6 @@ EOF
     fi
     ;;
 esac
-
-# Clean up temporary ssh-agent and keys.
-if [ "$vsh_tmpagentkey" = "yes" ]
-then
-  ssh-add -d ${keyfile}.pub 2> /dev/null
-fi
-if [ "$vsh_tmpagent" = "yes" ]
-then
-  eval `ssh-agent -sk` > /dev/null
-fi
 
 
 

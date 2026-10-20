@@ -20,10 +20,10 @@ case "$1" in
     ;;
   -k)
     env SSH_AUTH_SOCK=$VSH_AUTH_SOCK SSH_AGENT_PID=$VSH_AGENT_PID \
-      ssh-agent -k | sed 's/SSH/VSH/g'
+      ssh-agent -k | sed -e 's/SSH_AUTH_SOCK/VSH_AUTH_SOCK/g' -e 's/SSH_AGENT_PID/VSH_AGENT_PID/g'
       ;;
   "")
-    ssh-agent | sed 's/SSH/VSH/g'
+    ssh-agent | sed -e 's/SSH_AUTH_SOCK/VSH_AUTH_SOCK/g' -e 's/SSH_AGENT_PID/VSH_AGENT_PID/g'
     ;;
   *)
     cat <<EOF

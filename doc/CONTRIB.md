@@ -71,11 +71,8 @@ eval $(vsh-agent -k)     # stop
 reached at all and `vsh-agent` is in `$PATH`, `vsh` starts one and saves
 its environment to `~/.vsh/var/<fqdn>.agent`. Later `vsh` runs in any
 terminal on that machine reuse it. Load the key into it once with `vsh -a`
-(or `vsh-agent -a`) to type your passphrase only once. That needs the
-key-comment workaround from
-[VSH.md → Known problem](VSH.md#known-problem-the-key-is-never-seen-as-loaded),
-otherwise vsh removes the key again at exit. vsh never notices when the
-saved agent has died, so delete the `.agent` file after a reboot.
+(or `vsh-agent -a`) to type your passphrase only once. If the saved agent has died
+(e.g. after a reboot), vsh starts a new one and replaces the file.
 
 ## Bash completion
 
