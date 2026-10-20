@@ -24,6 +24,7 @@ hosts and other machines over plain SSH:
 | [Contrib tools](CONTRIB.md) | `vcp`, `vshcopy`, `vsh-agent`, bash completion |
 | [Usage & recipes](USAGE.md) | Common workflows, start to finish |
 | [Troubleshooting & limitations](TROUBLESHOOTING.md) | Common errors, quirks and known limitations |
+| [Testing](TESTING.md) | The test suite: lint, unit and VM integration tiers, known-bug markers, CI |
 
 ## Five-minute tour
 
