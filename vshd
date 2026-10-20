@@ -306,10 +306,10 @@ case "$action" in
     vsh_checkperm operations $user move
     if [ "$vsh_return" = "allowed" ]
     then
-      LOG "move-live $ct to $otherhost by $user"
+      LOG "move $ct to $otherhost by $user"
       vsh_movect live $ct $otherhost
     else
-      ERROR "move-live denied for $user"
+      ERROR "move denied for $user"
     fi
     ;;
 
@@ -327,7 +327,7 @@ case "$action" in
         vsh_movect live $ct $moveto
       done
     else
-      ERROR "moveall-live denied for $user"
+      ERROR "moveall denied for $user"
     fi
     ;;
 
@@ -335,7 +335,7 @@ case "$action" in
     vsh_checkperm operations $user move
     if [ "$vsh_return" = "allowed" ]
     then
-      LOG "move-ofline $ct to $otherhost by $user"
+      LOG "move-offline $ct to $otherhost by $user"
       vsh_movect offline $ct $otherhost
     else
       ERROR "move-offline denied for $user"
