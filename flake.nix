@@ -111,6 +111,10 @@
         ];
         shellHook = ''
           export PATH=$PWD/tests:$PATH
+          # Enable .githooks/ (pre-push runs the unit tier), unless the
+          # clone already uses other hooks.
+          git config core.hooksPath > /dev/null 2>&1 ||
+            git config core.hooksPath .githooks 2> /dev/null || true
           vsh-test help
         '';
       };

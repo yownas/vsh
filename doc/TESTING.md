@@ -20,6 +20,13 @@ vsh-test core          # integration: the main network
 vsh-test all
 ```
 
+A pre-push hook in `.githooks/` runs the unit tier before every push (skip
+it with `git push --no-verify`). Enable it once per clone:
+
+* **With Nix:** `nix develop` enables it (it sets `core.hooksPath`, unless
+  the clone already has one).
+* **Manually:** `git config core.hooksPath .githooks`
+
 Without the dev shell, run `tests/vsh-test <command>` directly. The script
 uses the flake as `path:` so new files are picked up before you `git add`
 them. Plain `nix flake check` works too, but only sees files git knows about.

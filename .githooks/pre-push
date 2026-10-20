@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# Run the unit tier (as CI does) before pushing. Takes seconds.
+# Skip it with `git push --no-verify`.
+#
+# Enable the hooks in .githooks/ once per clone:
+#   With Nix:  nix develop   (the dev shell sets core.hooksPath)
+#   Manually:  git config core.hooksPath .githooks
+
+exec "$(git rev-parse --show-toplevel)/tests/vsh-test" unit-sandbox
