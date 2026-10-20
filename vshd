@@ -11,7 +11,7 @@
 ############################
 
 vshprefix=/opt/vsh
-vshdexec="$vshprefix/libexec/vshd-`uname`"
+vshdexec="$vshprefix/libexec/vshd-$(uname)"
 vshdini=${vshprefix}/etc/vshd.ini
 vshdproxy=${vshprefix}/etc/proxy-clients
 moduledir=${vshprefix}/modulesd
@@ -88,7 +88,7 @@ EOF
   if [ "$ccmd" != "" ]
   then
     echo
-    echo $ccmd
+    echo "$ccmd"
   else
     echo
     echo "Invalid input: $ORIGINAL_COMMAND"
@@ -105,13 +105,13 @@ vsh_runas() {
   export tmp_ct=$2
 
   # Create search-string from ini-file
-  searchuser_str=`
+  searchuser_str=$(
     # Get all non-coment lines
     grep -v "^#" $vshdini | \
 
     # Print lines under [groups], remove white-space
     awk '/^\[/{p=0}/^\[groups\]$/{p=1}{if(p)print "@"$0","}' | \
-    egrep -v '^\[|^,$' | tr -d ' ' | \
+    grep -Ev '^\[|^,$' | tr -d ' ' | \
 
     # Grep for current user
     grep "[:,]$tmp_user," | \
@@ -120,28 +120,29 @@ vsh_runas() {
     awk -F: '{printf "^"$1"=.*$|"}END{print "^"ENVIRON["tmp_user"]"=.*$"}' | \
 
     # Escape any +-sign used for roles
-    sed 's/+/\\\\+/'` 
+    sed 's/+/\\\\+/' 
+  )
 
-
-  vsh_return=`
+  vsh_return=$(
     # Search the containers for user/group return user to run as
     grep -v "^#" $vshdini | \
 
     # Print lines under [containers], remove white-space
     awk '/^\[/{p=0}/^\[containers\]$/{p=1}{if(p)print $0}' | \
-    egrep -v '^\[|^$' | tr -d ' ' | \
+    grep -Ev '^\[|^$' | tr -d ' ' | \
 
     # Get container or *
-    egrep "^$tmp_ct:|^\*:" | \
+    grep -E "^$tmp_ct:|^\*:" | \
 
     # Get the list of all users/groups
     cut -d: -f2|tr , '\012' | \
 
     # Try to find user or users groups
-    egrep $searchuser_str | \
+    grep -E "$searchuser_str" | \
 
     # Only parse lines where there is a runas-user set
-    grep = | cut -d= -f2`
+    grep = | cut -d= -f2
+  )
 
   [ "$vsh_return" = "" ] && vsh_return="root"
 }
@@ -160,13 +161,13 @@ vsh_checkperm() {
   vsh_return=noperm
 
   # Create search-string from ini-file
-  searchuser_str=`
+  searchuser_str=$(
     # Get all non-comment lines
     grep -v "^#" $vshdini | \
 
     # Print lines under [groups], remove white-space
     awk '/^\[/{p=0}/^\[groups\]$/{p=1}{if(p)print "@"$0","}' | \
-    egrep -v '^\[|^,$' | tr -d ' ' | \
+    grep -Ev '^\[|^,$' | tr -d ' ' | \
 
     # Grep for current user
     grep "[:,]$tmp_user," | \
@@ -175,7 +176,8 @@ vsh_checkperm() {
     awk -F: '{printf "^"$1"$|"}END{print "^"ENVIRON["tmp_user"]"$"}' |\
 
     # Escape any +-sign used for roles
-    sed 's/+/\\\\+/'` 
+    sed 's/+/\\\\+/'
+  )
 
   # Search for user/groups if they have permisson
   # Get all non-comment lines
@@ -183,14 +185,14 @@ vsh_checkperm() {
 
   # Print lines under [$tmp_section], remove white-space
   awk "/^\[/{p=0}/^\[${tmp_section}\]\$/{p=1}{if(p)print \$0}" | \
-  egrep -v '^\[|^$' | tr -d ' ' | \
+  grep -Ev '^\[|^$' | tr -d ' ' | \
 
   # Get container or * and print user/groups
-  egrep "^$tmp_item:|^\*:" | \
+  grep -E "^$tmp_item:|^\*:" | \
   cut -d: -f2|tr , '\012'|sed 's/=.*$//' |\
 
   # Search user/group for permissions
-  egrep $searchuser_str > /dev/null && vsh_return=allowed
+  grep -E "$searchuser_str" > /dev/null && vsh_return=allowed
 }
 
 ###
@@ -258,7 +260,7 @@ vsh_parse $ORIGINAL_COMMAND
 case "$action" in
   hostrun)
     # Run command/start shell on host.
-    vsh_checkperm hosts $user `hostname`
+    vsh_checkperm hosts $user $(hostname)
     if [ "$vsh_return" = "allowed" ]
     then
       LOG "hostrun for $user@$(hostname)"
@@ -280,12 +282,12 @@ case "$action" in
     # ssh-proxied clients
     if [ -f "$vshdproxy" ]
     then
-      cat $vshdproxy | grep -v ^# | grep ssh: | sed 's/^/'`whoami`@`hostname`' /;s/$/ proxy/'
+      cat "$vshdproxy" | grep -v "^#" | grep ssh: | sed 's/^/'$(whoami)@$(hostname)' /;s/$/ proxy/'
 
       # Use vsh for proxy
       if grep -v ^# $vshdproxy | grep vsh: > /dev/null
       then
-        $VSH_BIN -lll | awk '{print "'`hostname`' "$2" vsh:"$3" "$4}'
+        $VSH_BIN -lll | awk '{print "'$(hostname)' "$2" vsh:"$3" "$4}'
       fi
     fi
 
@@ -318,10 +320,10 @@ case "$action" in
     if [ "$vsh_return" = "allowed" ]
     then
       hosts=$otherhosts
-      for ct in `vsh_list | awk '{print $2}'`
+      for ct in $(vsh_list | awk '{print $2}')
       do
-        moveto=`echo $hosts | awk '{print $1}'`
-        hosts=`echo $hosts" " | sed 's/^[^ ]* //;s/ $//'`
+        moveto=$(echo $hosts | awk '{print $1}')
+        hosts=$(echo $hosts" " | sed 's/^[^ ]* //;s/ $//')
         [ -z "$hosts" ] && hosts=$otherhosts
         LOG "move $ct to $moveto"
         vsh_movect live $ct $moveto
@@ -347,10 +349,10 @@ case "$action" in
     if [ "$vsh_return" = "allowed" ]
     then
       hosts=$otherhosts
-      for ct in `vsh_list | awk '{print $2}'`
+      for ct in $(vsh_list | awk '{print $2}')
       do
-        moveto=`echo $hosts | awk '{print $1}'`
-        hosts=`echo $hosts" " | sed 's/^[^ ]* //;s/ $//'`
+        moveto=$(echo $hosts | awk '{print $1}')
+	hosts=$(echo $hosts" " | sed 's/^[^ ]* //;s/ $//')
         [ -z "$hosts" ] && hosts=$otherhosts
         LOG "move $ct to $moveto"
         vsh_movect offline $ct $moveto
@@ -379,7 +381,7 @@ case "$action" in
       # Search ssh-aliases (if we have a proxy-list)
       if [ -f "$vshdproxy" ]
       then
-        tmp_path=`cat $vshdproxy | awk '/^'${tmp_ct}'[ \t\f\n\r\v]/{print $2}'`
+        tmp_path=$(cat $vshdproxy | awk '/^'${tmp_ct}'[ \t\f\n\r\v]/{print $2}')
         if [ ! "$tmp_path" = "" ]
         then
           # Use proxy-path instead of container name
@@ -388,8 +390,8 @@ case "$action" in
       fi
 
       # Proxy-client or container
-      target_proto=`echo $ct | sed 's/^\([^:]*\):.*/\1/'`
-      target_ct=`echo $ct | sed 's/^[^:]*:\(.*\)/\1/'`
+      target_proto=$(echo $ct | sed 's/^\([^:]*\):.*/\1/')
+      target_ct=$(echo $ct | sed 's/^[^:]*:\(.*\)/\1/')
 
       LOG "run $user $tmp_ct ($target_ct)"
 

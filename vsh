@@ -13,9 +13,9 @@ distkeyfolder=/tmp/`whoami`/
 keylife=32400	# 9 hours
 
 # Check if we should use environment variables.
-[ \! "$VSH_DISTKEYFOLDER" = "" ] && distkeyfolder=$VSH_DISTKEYFOLDER
-[ \! "$VSH_HOSTFILE" = "" ] && hostfile=$VSH_HOSTFILE
-[ \! "$VSH_KEYLIFE" = "" ] && keylife=$VSH_KEYLIFE
+test ! "$VSH_DISTKEYFOLDER" = "" && distkeyfolder=$VSH_DISTKEYFOLDER
+test ! "$VSH_HOSTFILE" = "" && hostfile=$VSH_HOSTFILE
+test ! "$VSH_KEYLIFE" = "" && keylife=$VSH_KEYLIFE
 
 # If VSH_AUTH_SOCK is set, use it instead of SSH_AUTH_SOCK
 if [ \! "$VSH_AUTH_SOCK" = "" ]
