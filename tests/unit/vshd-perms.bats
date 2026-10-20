@@ -130,6 +130,17 @@ EOF
   ! grep -q lxc-attach "$ROOT/log/calls"
 }
 
+@test "runas user for a role listed directly is found" {
+  use_ini <<'EOF'
+[groups]
+[containers]
+db01.vsh.test:alice+admin=app
+EOF
+  vshd_as alice+admin "run lxc:db01.vsh.test id"
+  [[ "$output" == *"Entering LXC containers as a user not implemented"* ]]
+  ! grep -q lxc-attach "$ROOT/log/calls"
+}
+
 regex_container_is_denied() {
   vshd_as bob "run lxc:.* true"
   [[ "$output" == *"run permission denied for bob@"* ]] && ! grep -q "run bob " "$ROOT/log/syslog"

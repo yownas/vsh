@@ -120,7 +120,7 @@ vsh_runas() {
     awk -F: '{printf "^"$1"=.*$|"}END{print "^"ENVIRON["tmp_user"]"=.*$"}' | \
 
     # Escape any +-sign used for roles
-    sed 's/+/\\\\+/' 
+    sed 's/+/\\+/'
   )
 
   vsh_return=$(
@@ -176,7 +176,7 @@ vsh_checkperm() {
     awk -F: '{printf "^"$1"$|"}END{print "^"ENVIRON["tmp_user"]"$"}' |\
 
     # Escape any +-sign used for roles
-    sed 's/+/\\\\+/'
+    sed 's/+/\\+/'
   )
 
   # Search for user/groups if they have permisson
