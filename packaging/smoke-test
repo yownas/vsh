@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+#
+# smoke-test: check that an installed vsh-host answers requests correctly.
+#
+# Run as root in a throwaway container after installing the vsh-host and
+# vsh-proxy packages (CI does this for every package format). It overwrites
+# /opt/vsh/etc/vshd.ini and proxy-clients.
+#
+# vshd runs as sshd would run it for a key with command="... user=<user>",
+# so this covers the permission checks with the distro's awk/sed/grep and
+# logger (busybox on Alpine).
+
+set -u
+
+etc=/opt/vsh/etc
+host=$(hostname)
+failed=0
+
+cat > "$etc/vshd.ini" <<'EOF'
+[groups]
+wheel:alice
+
+[containers]
+gw:@wheel
+
+[hosts]
+*:@wheel
+
+[operations]
+
+[modules]
+EOF
+echo "gw ssh:192.0.2.1" > "$etc/proxy-clients"
+
+# check <user> <request> <expected status> <expected output>
+check() {
+  local out status
+  out=$(SSH_ORIGINAL_COMMAND=$2 /opt/vsh/bin/vshd "user=$1" 2>&1)
+  status=$?
+  if [ "$status" = "$3" ] && [ "$out" = "$4" ]; then
+    echo "ok: $1: $2"
+  else
+    echo "FAIL: $1: $2"
+    echo "  expected status $3, output: $4"
+    echo "  got      status $status, output: $out"
+    failed=1
+  fi
+}
+
+check alice "hostrun id -u" 0 "0"
+check bob "hostrun id -u" 1 "error: hostrun permission denied for bob@$host"
+check alice "list" 0 "root@$host gw ssh:192.0.2.1 proxy"
+check alice "module qc" 1 "error: module qc denied for alice"
+
+exit $failed

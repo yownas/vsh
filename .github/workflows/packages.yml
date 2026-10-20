@@ -81,6 +81,10 @@ jobs:
           - {image: 'alpine:3.23', format: apk}
           - {image: 'alpine:3.24', format: apk}
     steps:
+      # For packaging/smoke-test, which runs whenever vsh-host was built.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: packaging
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: packages
@@ -89,7 +93,7 @@ jobs:
       - name: Install and verify on ${{ matrix.image }}
         if: matrix.format == 'rpm'
         run: |
-          docker run --rm -v "$PWD/dist:/pkgs:ro" "${{ matrix.image }}" sh -euxc '
+          docker run --rm -v "$PWD/dist:/pkgs:ro" -v "$PWD/packaging:/packaging:ro" "${{ matrix.image }}" sh -euxc '
             dnf install -y /pkgs/*.rpm
             names=$(rpm -qp --qf "%{NAME} " /pkgs/*.rpm)
             rpm -q $names
@@ -97,6 +101,7 @@ jobs:
             for f in $(rpm -ql $names | grep -E "^/(usr/bin|opt/vsh/(bin|libexec))/"); do
               bash -n "$f"
             done
+            [ ! -e /opt/vsh/bin/vshd ] || /packaging/smoke-test
           '
 
       # Ubuntu's images leave out /usr/share/doc, so dpkg --verify reports
@@ -104,7 +109,7 @@ jobs:
       - name: Install and verify on ${{ matrix.image }}
         if: matrix.format == 'deb'
         run: |
-          docker run --rm -v "$PWD/dist:/pkgs:ro" "${{ matrix.image }}" sh -euxc '
+          docker run --rm -v "$PWD/dist:/pkgs:ro" -v "$PWD/packaging:/packaging:ro" "${{ matrix.image }}" sh -euxc '
             apt-get update
             DEBIAN_FRONTEND=noninteractive apt-get install -y /pkgs/*.deb
             names=$(for f in /pkgs/*.deb; do dpkg-deb -f "$f" Package; done)
@@ -113,13 +118,14 @@ jobs:
             for f in $(dpkg -L $names | grep -E "^/(usr/bin|opt/vsh/(bin|libexec))/."); do
               bash -n "$f"
             done
+            [ ! -e /opt/vsh/bin/vshd ] || /packaging/smoke-test
           '
 
       # The apks are not signed.
       - name: Install and verify on ${{ matrix.image }}
         if: matrix.format == 'apk'
         run: |
-          docker run --rm -v "$PWD/dist:/pkgs:ro" "${{ matrix.image }}" sh -euxc '
+          docker run --rm -v "$PWD/dist:/pkgs:ro" -v "$PWD/packaging:/packaging:ro" "${{ matrix.image }}" sh -euxc '
             apk add --allow-untrusted /pkgs/*.apk
             names=$(for f in /pkgs/*.apk; do tar -xzOf "$f" .PKGINFO 2>/dev/null | sed -n "s/^pkgname = //p"; done)
             apk info -e $names
@@ -129,6 +135,7 @@ jobs:
             for f in $(apk info -qL $names | grep -E "^(usr/bin|opt/vsh/(bin|libexec))/."); do
               bash -n "/$f"
             done
+            [ ! -e /opt/vsh/bin/vshd ] || /packaging/smoke-test
           '
 
   release:
