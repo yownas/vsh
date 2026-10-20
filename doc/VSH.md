@@ -174,7 +174,8 @@ Keys are RSA keys created with `ssh-keygen -t rsa`.
    `vsh-agent` started earlier. If that agent can still be reached it is
    reused; if not (no file, or the agent died, e.g. after a reboot), a new
    `vsh-agent` is started and saved there. This requires `vsh-agent` in
-   `$PATH`.
+   `$PATH`. `vsh` runs started at the same time share one new agent
+   (`<fqdn>.agent.lock` is held while it starts).
 3. If there is still no agent, a temporary `ssh-agent` is started and
    killed again when `vsh` exits.
 4. With `-a`, the key is added for `$VSH_KEYLIFE` seconds.

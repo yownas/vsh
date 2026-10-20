@@ -71,9 +71,20 @@ vsh_atct() {
   done
 }
 
+# vsh_reachvshagent
+# Test if the vsh-agent in $VSH_AUTH_SOCK can be reached.
+vsh_reachvshagent() {
+  env SSH_AUTH_SOCK="$VSH_AUTH_SOCK" ssh-add -l > /dev/null 2>&1
+  [ $? -le 1 ]
+}
+
 # vsh_cleanup
-# Remove temporary key and ssh-agent. Run on exit.
+# Remove temporary key and ssh-agent, and the vsh-agent lock. Run on exit.
 vsh_cleanup() {
+  if [ -n "$vsh_agentlock" ]
+  then
+    rmdir "$vsh_agentlock" 2> /dev/null
+  fi
   if [ "$vsh_tmpagentkey" = "yes" ]
   then
     ssh-add -d ${keyfile}.pub 2> /dev/null
@@ -447,13 +458,27 @@ then
     [ -f "$agentfile" ] && source "$agentfile"
     # Start a new vsh-agent if the saved one can not be reached (no file,
     # agent died, socket removed, ...)
-    env SSH_AUTH_SOCK="$VSH_AUTH_SOCK" ssh-add -l > /dev/null 2>&1
-    vsh_result=$?
-    if [ \! "$vsh_result" = "0" -a \! "$vsh_result" = "1" ]
+    if ! vsh_reachvshagent
     then
+      # Only one vsh at a time may start it, the others use that one.
+      # A lock held for more than 10 seconds was left by a killed vsh.
       mkdir -p $statedir
-      eval $(vsh-agent) > /dev/null
-      vsh-agent -e | grep -e '^export' > "$agentfile.$$" && mv -f "$agentfile.$$" "$agentfile"
+      tmp_tries=0
+      until mkdir "$agentfile.lock" 2> /dev/null
+      do
+        tmp_tries=$((tmp_tries + 1))
+        [ $tmp_tries -gt 10 ] && rmdir "$agentfile.lock" 2> /dev/null
+        sleep 1
+      done
+      vsh_agentlock="$agentfile.lock"
+      [ -f "$agentfile" ] && source "$agentfile"
+      if ! vsh_reachvshagent
+      then
+        eval $(vsh-agent) > /dev/null
+        vsh-agent -e | grep -e '^export' > "$agentfile.$$" && mv -f "$agentfile.$$" "$agentfile"
+      fi
+      rmdir "$vsh_agentlock"
+      vsh_agentlock=""
     fi
   fi
 

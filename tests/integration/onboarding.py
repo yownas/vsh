@@ -68,6 +68,8 @@ with subtest("after the admin installs the dist key, carol can work"):
 # carol has no agent of her own, so vsh starts a vsh-agent and saves its
 # environment in ~/.vsh/var/<fqdn>.agent.
 
+import time
+
 AGENTFILE = "~/.vsh/var/$(hostname -f).agent"
 
 
@@ -148,6 +150,47 @@ for sig in ("HUP", "INT", "TERM"):
     with subtest(f"a vsh killed by SIG{sig} leaves no temporary ssh-agent behind"):
         left = vsh_killed_by(sig)
         check(left == 0, f"{left} temporary ssh-agent(s) still running after SIG{sig}")
+
+# A vsh-agent that takes a second to start, so that concurrent vsh runs all
+# find no agent before the first one has saved its environment.
+ws.succeed(
+    "mkdir -p /tmp/slow-vsh-agent && printf '%s\\n' '#!/bin/sh' '[ -z \"$1\" ] && sleep 1'"
+    " 'exec /run/current-system/sw/bin/vsh-agent \"$@\"' > /tmp/slow-vsh-agent/vsh-agent"
+    " && chmod +x /tmp/slow-vsh-agent/vsh-agent"
+)
+
+with subtest("vsh runs started at the same time share one new vsh-agent"):
+    ws.succeed("su - alice -c 'rm -f ~/.vsh/var/*.agent'")
+    before = ssh_agents("alice")
+    status, out = run_as(
+        "alice",
+        "export PATH=/tmp/slow-vsh-agent:$PATH; for i in 1 2 3 4 5; do vsh -u web01.vsh.test true & done; wait",
+    )
+    check("Can not" not in out and "denied" not in out, f"concurrent vsh runs failed: {out}")
+    started = ssh_agents("alice") - before
+    check(started == 1, f"{started} vsh-agents started by 5 concurrent vsh runs")
+
+with subtest("a lock left by a killed vsh does not block vsh"):
+    # As if vsh had been killed with SIGKILL while starting the vsh-agent.
+    ws.succeed("su - alice -c 'f=~/.vsh/var/$(hostname -f).agent; rm -f $f; mkdir $f.lock'")
+    status, out = run_as("alice", "timeout 60 vsh -u web01.vsh.test echo through")
+    check(status == 0 and "through" in out, f"vsh with a stale lock: {status} {out}")
+
+with subtest("a vsh killed while starting the vsh-agent does not make the next one wait"):
+    ws.succeed("su - alice -c 'rm -f ~/.vsh/var/*.agent'")
+    ws.succeed(
+        "su - alice -c 'PATH=/tmp/slow-vsh-agent:$PATH env --default-signal setsid vsh -u web01.vsh.test true"
+        " > /dev/null 2>&1 < /dev/null & echo $! > /tmp/vsh.pid'"
+    )
+    pid = ws.succeed("cat /tmp/vsh.pid").strip()
+    ws.wait_until_succeeds("pgrep -u alice -f slow-vsh-agent", timeout=30)
+    ws.succeed(f"kill -TERM -- -{pid}")
+    ws.wait_until_fails(f"kill -0 {pid}", timeout=30)
+    t0 = time.monotonic()
+    status, out = run_as("alice", "vsh -u web01.vsh.test echo through")
+    elapsed = time.monotonic() - t0
+    check(status == 0 and "through" in out, f"next vsh: {status} {out}")
+    check(elapsed < 5, f"next vsh waited {elapsed:.0f}s for the lock of the killed one")
 
 # ---------------------------------------------------------------- hardening
 
