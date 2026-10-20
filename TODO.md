@@ -87,4 +87,18 @@ file without creating `~/.ssh`, so on a fresh account no host keys are saved.
   inside the container rootfs.
 - `vsh:` proxy (vshd using vsh to reach other hosts) end to end.
 - `contrib/vsh-complete.bash`.
+- Run the unit tier against the installed packages on every distro in the
+  `packages` workflow's install job (EL8/9/10, Fedora, Debian, Ubuntu,
+  Alpine), replacing `packaging/smoke-test`:
+  - `vshd_as` mounts only `/nix` in bwrap and limits `PATH` to store paths;
+    without `/nix`, mount `/usr` (and `/bin`, `/lib`, `/sbin` where they are
+    real directories, as on Alpine) and use the system `PATH`.
+  - Point `VSH_PKG` at the installed files (`/opt/vsh/bin/vshd`,
+    `/opt/vsh/libexec`, `/opt/vsh/modulesd`, `/usr/bin/vsh`).
+  - Run the containers with `--privileged`, since Docker's seccomp profile
+    blocks the namespaces bwrap needs.
+  - Install bats-core from a pinned release (Ubuntu 22.04 has 1.2, EL only
+    has it in EPEL) and bubblewrap from the distro.
+  - Expect differences from busybox (Alpine) and GNU grep's egrep warning;
+    each is either a portability bug or a test that assumes GNU tools.
 - Make the lint job blocking once the shellcheck backlog is triaged.
