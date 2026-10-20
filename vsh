@@ -425,22 +425,20 @@ then
   # Test if we can't reach ssh-agent
   ssh-add -l > /dev/null 2>&1
   vsh_result=$?
-  if [ \! "$vsh_result" = "0" -a \! "$vsh_result" = "1" ]
+  if [ \! "$vsh_result" = "0" -a \! "$vsh_result" = "1" ] && type vsh-agent > /dev/null 2>&1
   then
     # Try to find vsh-agent from file in $statedir
     agentfile="$statedir/$(hostname -f).agent"
-    mkdir -p $statedir
-    if [[ -f "$agentfile" ]]; then
-      source $agentfile
-      proc=$(ps -C "ssh-agent" -f | grep " $VHS_AGENT_PID "|  grep "$USER")
-      # File found but no live ssh-agent process
-        if [[ -z "$proc" ]]; then
-          eval $(vsh-agent) > /dev/null
-          vsh-agent -e | grep -e '^export'  > $agentfile
-        fi
-    else
+    [ -f "$agentfile" ] && source "$agentfile"
+    # Start a new vsh-agent if the saved one can not be reached (no file,
+    # agent died, socket removed, ...)
+    env SSH_AUTH_SOCK="$VSH_AUTH_SOCK" ssh-add -l > /dev/null 2>&1
+    vsh_result=$?
+    if [ \! "$vsh_result" = "0" -a \! "$vsh_result" = "1" ]
+    then
+      mkdir -p $statedir
       eval $(vsh-agent) > /dev/null
-      vsh-agent -e | grep -e '^export'  > $agentfile
+      vsh-agent -e | grep -e '^export' > "$agentfile.$$" && mv -f "$agentfile.$$" "$agentfile"
     fi
   fi
 

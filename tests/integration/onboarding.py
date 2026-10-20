@@ -63,6 +63,38 @@ with subtest("after the admin installs the dist key, carol can work"):
     assert_logged(vshhost1, r"ARG: user=carol CMD: run lxc:web01\.vsh\.test cat /etc/vsh-ct-name", "info")
     assert_logged(vshhost1, r"error: run permission denied for carol@db01\.vsh\.test", "err")
 
+# ---------------------------------------------------------------- ssh-agent
+#
+# carol has no agent of her own, so vsh starts a vsh-agent and saves its
+# environment in ~/.vsh/var/<fqdn>.agent.
+
+AGENTFILE = "~/.vsh/var/$(hostname -f).agent"
+
+
+def in_vsh_agent(cmd):
+    """Run cmd as carol against the vsh-agent saved in AGENTFILE."""
+    return ws.succeed(f"su - carol -c {shlex.quote(f'. {AGENTFILE}; export SSH_AUTH_SOCK=$VSH_AUTH_SOCK; {cmd}')}")
+
+
+def agent_reachable():
+    # ssh-add -l: 0 = keys, 1 = no keys, 2 = no agent
+    return in_vsh_agent("ssh-add -l > /dev/null; echo $?").strip() in ("0", "1")
+
+
+with subtest("vsh replaces a saved vsh-agent that has died"):
+    check(agent_reachable(), "earlier vsh runs left no reachable vsh-agent")
+    old = in_vsh_agent("echo $VSH_AGENT_PID").strip()
+    # Another ssh-agent of carol's (e.g. her desktop's) must not be mistaken
+    # for the dead vsh-agent.
+    ws.succeed("su - carol -c 'ssh-agent > /dev/null'")
+    ws.succeed(f"kill {old}")
+    ws.wait_until_fails(f"kill -0 {old}")
+    status, out = carol("vsh web01 cat /etc/vsh-ct-name")
+    check(status == 0 and "web01.vsh.test" in out, f"vsh web01 after the agent died: {out}")
+    new = in_vsh_agent("echo $VSH_AGENT_PID").strip()
+    check(new != old, f"{AGENTFILE} still points at the dead agent {old}")
+    check(agent_reachable(), "the new vsh-agent can not be reached")
+
 # ---------------------------------------------------------------- hardening
 
 with subtest("non-printable characters in a request are rejected and logged"):

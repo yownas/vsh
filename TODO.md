@@ -65,8 +65,6 @@ file without creating `~/.ssh`, so on a fresh account no host keys are saved.
 
 ## Other findings
 
-- `vsh`: `ps ... | grep " $VHS_AGENT_PID "` — typo for `VSH_AGENT_PID`, so
-  any running ssh-agent of the user counts as the vsh-agent.
 - `vsh_getctname` parses `host` output with `tail -1`; it relies on AAAA/MX
   lookups for an A-only name returning NODATA. A resolver that answers
   NXDOMAIN there (dnsmasq `address=`) breaks name lookups.

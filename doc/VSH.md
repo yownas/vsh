@@ -171,11 +171,10 @@ Keys are RSA keys created with `ssh-keygen -t rsa`.
    [CONTRIB.md → vsh-agent](CONTRIB.md#vsh-agent)).
 2. If no agent can be reached, `vsh` looks for
    `~/.vsh/var/<fqdn>.agent`. That file holds the environment of a
-   `vsh-agent` started earlier. If the file exists it is reused; if not, a
-   new `vsh-agent` is started and saved there. This requires `vsh-agent` in
-   `$PATH`. The check for a dead agent does not work (the script tests a
-   misspelled variable, `VHS_AGENT_PID`), so a stale file is never
-   replaced: delete it yourself after a reboot.
+   `vsh-agent` started earlier. If that agent can still be reached it is
+   reused; if not (no file, or the agent died, e.g. after a reboot), a new
+   `vsh-agent` is started and saved there. This requires `vsh-agent` in
+   `$PATH`.
 3. If there is still no agent, a temporary `ssh-agent` is started and
    killed again when `vsh` exits.
 4. With `-a`, the key is added for `$VSH_KEYLIFE` seconds.
