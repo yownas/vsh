@@ -117,7 +117,7 @@ with subtest("start/stop need the admin role"):
 
 with subtest("move is permission checked"):
     status, out = run_as("alice", "vsh -o move app01.vsh.test vshhost1")
-    check("move-live denied for alice" in out, f"alice move: {out}")
+    check("move denied for alice" in out, f"alice move: {out}")
 
 def move_reports_unsupported():
     status, out = run_as("alice", "vsh -k admin -o move app01.vsh.test vshhost1")

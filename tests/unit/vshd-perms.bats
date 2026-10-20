@@ -102,7 +102,7 @@ EOF
 @test "move is checked before the LXC backend refuses it" {
   vshd_as alice "move lxc:app01.vsh.test vshhost1"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"move-live denied for alice"* ]]
+  [[ "$output" == *"move denied for alice"* ]]
 
   vshd_as alice+admin "move lxc:app01.vsh.test vshhost1"
   [[ "$output" == *"Migrating LXC containers not implemented"* ]]
@@ -126,6 +126,17 @@ move_by_name_reports_unsupported() {
 db01.vsh.test:bob=app
 EOF
   vshd_as bob "run lxc:db01.vsh.test id"
+  [[ "$output" == *"Entering LXC containers as a user not implemented"* ]]
+  ! grep -q lxc-attach "$ROOT/log/calls"
+}
+
+@test "runas user for a role listed directly is found" {
+  use_ini <<'EOF'
+[groups]
+[containers]
+db01.vsh.test:alice+admin=app
+EOF
+  vshd_as alice+admin "run lxc:db01.vsh.test id"
   [[ "$output" == *"Entering LXC containers as a user not implemented"* ]]
   ! grep -q lxc-attach "$ROOT/log/calls"
 }
