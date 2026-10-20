@@ -106,6 +106,14 @@ with subtest("a key loaded with -a stays loaded"):
     check(status == 0 and "through" in out, f"vsh after -a: {out}")
     check("vsh-carol-user" in in_vsh_agent("ssh-add -l || true"), "a later vsh run removed the key")
 
+with subtest("piping into vsh asks for the passphrase only once"):
+    in_vsh_agent("ssh-add -D")
+    # Without -u vsh connects twice: list (statefile update), then run.
+    status, out = carol("sh -c " + shlex.quote("echo through | vsh web01 cat"))
+    prompts = len(re.findall(r"[Pp]assphrase", out))
+    check(status == 0 and "through" in out, f"echo through | vsh web01 cat: {status} {out!r}")
+    check(prompts == 1, f"asked for the passphrase {prompts} times: {out!r}")
+
 # Without vsh-agent in $PATH and no agent to reach, vsh starts a temporary
 # ssh-agent for the run.
 ws.succeed(

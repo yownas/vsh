@@ -78,6 +78,18 @@ vsh_reachvshagent() {
   [ $? -le 1 ]
 }
 
+# vsh_addkey ssh-add-args
+# ssh-add, asking for the passphrase on the terminal also when stdin is
+# piped (ssh-add only asks if stdin is a terminal).
+vsh_addkey() {
+  if [ \! -t 0 ] && { : < /dev/tty; } 2> /dev/null
+  then
+    ssh-add "$@" < /dev/tty
+  else
+    ssh-add "$@"
+  fi
+}
+
 # vsh_cleanup
 # Remove temporary key and ssh-agent, and the vsh-agent lock. Run on exit.
 vsh_cleanup() {
@@ -500,7 +512,7 @@ then
     # Add key to external ssh-agent
     if [ "$addkey" = "true" ]
     then
-      ssh-add -t $keylife $keyfile 2> /dev/null
+      vsh_addkey -t $keylife $keyfile 2> /dev/null
     fi
   else
     # Start a temporary ssh-agent.
@@ -518,9 +530,7 @@ then
     vsh_tmpagentkey=yes
     # Add temporary key with a timeout of 30 seconds
     # should be more than enough.
-    ssh-add -t 30 $keyfile 2> /dev/null
-    # FIXME: It seems to be a problem here, if you pipe something
-    # through vsh it will skip this step.
+    vsh_addkey -t 30 $keyfile 2> /dev/null
   fi
 fi
 
