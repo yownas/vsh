@@ -39,6 +39,7 @@ The full user guide lives in [`doc/`](doc/README.md):
 * [Access control (`vshd.ini`)](doc/VSHD-INI.md)
 * [Proxy clients](doc/PROXY-CLIENTS.md), [Modules](doc/MODULES.md), [Contrib tools](doc/CONTRIB.md)
 * [Usage & recipes](doc/USAGE.md), [Troubleshooting](doc/TROUBLESHOOTING.md)
+* [Testing](doc/TESTING.md) and [Contributing](CONTRIBUTING.md)
 
 ## License
 
