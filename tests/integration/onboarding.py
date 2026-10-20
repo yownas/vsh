@@ -97,6 +97,15 @@ with subtest("vsh replaces a saved vsh-agent that has died"):
     check(new != old, f"{AGENTFILE} still points at the dead agent {old}")
     check(agent_reachable(), "the new vsh-agent can not be reached")
 
+with subtest("a key loaded with -a stays loaded"):
+    status, out = carol("vsh -a web01 true")
+    check(status == 0, f"vsh -a web01 true: {out}")
+    check("vsh-carol-user" in in_vsh_agent("ssh-add -l || true"), "the key is not in the agent after vsh -a")
+    # No tty: works only if vsh uses the loaded key instead of asking again.
+    status, out = run_as("carol", "vsh web01 echo through")
+    check(status == 0 and "through" in out, f"vsh after -a: {out}")
+    check("vsh-carol-user" in in_vsh_agent("ssh-add -l || true"), "a later vsh run removed the key")
+
 # Without vsh-agent in $PATH and no agent to reach, vsh starts a temporary
 # ssh-agent for the run.
 ws.succeed(

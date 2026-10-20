@@ -509,7 +509,9 @@ then
   fi
 
   # Add key to ssh-agent
-  if (ssh-add -L | grep $keyfile > /dev/null)
+  # ssh-add shows the key's comment, not its path, so compare fingerprints.
+  keyfp=$(ssh-keygen -lf "${keyfile}.pub" 2> /dev/null | awk '{print $2}')
+  if [ -n "$keyfp" ] && ssh-add -l 2> /dev/null | awk '{print $2}' | grep -qxF "$keyfp"
   then
     vsh_tmpagentkey=no
   else
