@@ -423,7 +423,7 @@ case "$action" in
       esac
 
     else
-      ERROR "run permission denied for $user@$tmp_ct ($target_ct)"
+      ERROR "run permission denied for $user@$tmp_ct ($ct)"
     fi
     ;;
 
