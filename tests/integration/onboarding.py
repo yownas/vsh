@@ -95,6 +95,60 @@ with subtest("vsh replaces a saved vsh-agent that has died"):
     check(new != old, f"{AGENTFILE} still points at the dead agent {old}")
     check(agent_reachable(), "the new vsh-agent can not be reached")
 
+# Without vsh-agent in $PATH and no agent to reach, vsh starts a temporary
+# ssh-agent for the run.
+ws.succeed(
+    "mkdir -p /tmp/no-vsh-agent && for f in /run/current-system/sw/bin/*; do"
+    ' [ "${f##*/}" = vsh-agent ] || ln -sf "$f" /tmp/no-vsh-agent/; done'
+)
+NO_VSH_AGENT = "PATH=/tmp/no-vsh-agent:/run/wrappers/bin"
+# Host keys are not trusted globally on this workstation.
+ws.succeed("su - alice -c 'install -d -m700 ~/.ssh && ssh-keyscan vshhost1 > ~/.ssh/known_hosts 2> /dev/null'")
+
+
+def ssh_agents(user):
+    return int(ws.succeed(f"pgrep -c -u {user} -x ssh-agent || true").strip())
+
+
+with subtest("a vsh run that fails leaves no temporary ssh-agent behind"):
+    before = ssh_agents("alice")
+    status, out = run_as("alice", f"{NO_VSH_AGENT} vsh nosuch true")
+    check(status == 1 and "Can not find container nosuch" in out, f"vsh nosuch: {status} {out}")
+    check(ssh_agents("alice") == before, "a temporary ssh-agent is still running")
+
+with subtest("a vsh run that fails removes the temporary key from the user's agent"):
+    status, out = run_as(
+        "alice", "eval $(ssh-agent) > /dev/null; vsh nosuch true; ssh-add -l; eval $(ssh-agent -k) > /dev/null"
+    )
+    check("Can not find container nosuch" in out, f"vsh nosuch: {out}")
+    check("vsh-alice-user" not in out, f"the temporary key is still in the agent: {out}")
+
+
+def vsh_killed_by(sig):
+    """Kill a running vsh, and its ssh, like a terminal would its job."""
+    before = ssh_agents("alice")
+    # Own process group, default signal dispositions (a background job of
+    # a non-interactive shell would ignore INT).
+    ws.succeed(
+        f"su - alice -c '{NO_VSH_AGENT} env --default-signal setsid vsh web01.vsh.test sleep 60"
+        " > /tmp/vsh-killed.log 2>&1 < /dev/null & echo $! > /tmp/vsh.pid'"
+    )
+    pid = ws.succeed("cat /tmp/vsh.pid").strip()
+    try:
+        ws.wait_until_succeeds("pgrep -u alice -f 'run lxc:web01.vsh.test sleep 60'", timeout=30)
+    except Exception:
+        print(ws.execute("cat /tmp/vsh-killed.log; ps -fu alice")[1])
+        raise
+    ws.succeed(f"kill -{sig} -- -{pid}")
+    ws.wait_until_fails(f"kill -0 {pid}", timeout=30)
+    return ssh_agents("alice") - before
+
+
+for sig in ("HUP", "INT", "TERM"):
+    with subtest(f"a vsh killed by SIG{sig} leaves no temporary ssh-agent behind"):
+        left = vsh_killed_by(sig)
+        check(left == 0, f"{left} temporary ssh-agent(s) still running after SIG{sig}")
+
 # ---------------------------------------------------------------- hardening
 
 with subtest("non-printable characters in a request are rejected and logged"):

@@ -26,7 +26,6 @@
 | `Permission denied (publickey)` | Key not in `~root/.ssh/authorized_keys`, sshd forbids root logins (`PermitRootLogin`), or the hostfile has the wrong `user@`. |
 | Asked for a passphrase on every call, even after `vsh -a` | vsh cannot tell that the key is loaded and re-adds, then removes, it on every call. Set each key's comment to its path: see [VSH.md → Known problem](VSH.md#known-problem-the-key-is-never-seen-as-loaded). Also make sure an agent is reachable (`ssh-add -l`). |
 | Passphrase asked again halfway through a long `atct`/`athosts`/`qc` run | The temporary key only lives 30 seconds. Load it with `vsh -a` first. |
-| Temporary agent or key left behind after vsh exits on an error | Cleanup only runs at the normal end of the script ([upstream #6](https://github.com/yownas/vsh/issues/6)). Kill the agent by hand, or wait for the 30-second key lifetime to expire. |
 | Output appears late, or all at once at the end, when piped (`vsh ct cmd \| grep`, `-p`, `atct`) | The remote program buffers its output because it is not writing to a TTY ([upstream #9](https://github.com/yownas/vsh/issues/9)). Force line buffering on the remote side: `vsh ct 'stdbuf -oL tail -f /var/log/messages' \| grep error`. |
 | `vsh -x`: `Can not find X11-keys!` | `vsh -g X11`. |
 | `vsh -x` fails inside the container | The container needs `/usr/sbin/sshd` and `xauth`, and the remote user needs a home directory. A `Deprecated option UsePrivilegeSeparation` warning from OpenSSH 7.5+ is harmless. |

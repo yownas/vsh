@@ -71,6 +71,19 @@ vsh_atct() {
   done
 }
 
+# vsh_cleanup
+# Remove temporary key and ssh-agent. Run on exit.
+vsh_cleanup() {
+  if [ "$vsh_tmpagentkey" = "yes" ]
+  then
+    ssh-add -d ${keyfile}.pub 2> /dev/null
+  fi
+  if [ "$vsh_tmpagent" = "yes" ]
+  then
+    eval `ssh-agent -sk` > /dev/null
+  fi
+}
+
 # vsh_getctname ct
 # Get fqdn or cid for container from dns or statefile
 vsh_getctname() {
@@ -421,7 +434,9 @@ keyfile=`echo $keyfile_name | sed "s/SUFFIX/${keysuffix}/"`
 
 if [ "$needconf" = "yes" ]
 then
-  
+  # Clean up temporary ssh-agent and keys however we exit.
+  trap vsh_cleanup EXIT
+
   # Test if we can't reach ssh-agent
   ssh-add -l > /dev/null 2>&1
   vsh_result=$?
@@ -804,16 +819,6 @@ EOF
     fi
     ;;
 esac
-
-# Clean up temporary ssh-agent and keys.
-if [ "$vsh_tmpagentkey" = "yes" ]
-then
-  ssh-add -d ${keyfile}.pub 2> /dev/null
-fi
-if [ "$vsh_tmpagent" = "yes" ]
-then
-  eval `ssh-agent -sk` > /dev/null
-fi
 
 
 
