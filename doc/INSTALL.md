@@ -12,6 +12,32 @@ the client keeps everything in `~/.vsh/` and the server lives in `/opt/vsh/`.
 | vsh-host | `bash`, OpenSSH server, `logger`, and a container runtime: OpenVZ (`vzctl`/`vzlist`/`vzmigrate`), Virtuozzo (`prlctl`), LXC (`lxc-ls`, `lxc-attach`, `lxc-info`, ...) or Solaris zones (`zoneadm`, `zlogin`). A host used only for proxying needs no runtime. |
 | Containers (only for `vsh -x`) | `/usr/sbin/sshd` and X11 client libraries/`xauth` inside the container |
 
+## Packages (RPM, deb, apk)
+
+On EL8+ and Fedora (RPM), Debian and Ubuntu (deb) or Alpine (apk) you can
+install from packages instead of copying files. Each tagged release has
+them attached, and every CI run keeps them as the `packages` artifact. To
+build them yourself (into `build/packages/`):
+
+```sh
+nix run .#packages                       # all three, in every format
+nix run .#packages -- -f deb host proxy  # only some
+packaging/build -o dist -f rpm client    # without Nix, with nfpm in $PATH
+```
+
+The apks are not signed, so install them with
+`apk add --allow-untrusted ./vsh*.apk`.
+
+| Package | Contents |
+| --- | --- |
+| `vsh` | `/usr/bin/vsh`, `vsh-agent`, `vcp`, `vshcopy`, bash completion, client modules in `/usr/share/vsh/modules` (copy them to `~/.vsh/modules`) |
+| `vsh-host` | `/opt/vsh/bin/vshd`, `libexec/vshd-Linux`, `modulesd/`, `etc/vshd.ini` |
+| `vsh-proxy` | `etc/proxy-clients` and `/opt/vsh/bin/vsh` → `/usr/bin/vsh`. Needs `vsh` and `vsh-host` |
+
+`vshd.ini` and `proxy-clients` are config files, so upgrades keep your
+edits. The packages only install files. Keys, `authorized_keys` and sshd
+are still set up as described below.
+
 ## Client
 
 ### 1. Install the script

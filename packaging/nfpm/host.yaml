@@ -1,0 +1,95 @@
+# vsh-host: vshd and the Linux backend under /opt/vsh. Built by
+# packaging/build. The prefix stays /opt/vsh because `vsh -g` writes
+# /opt/vsh/bin/vshd into every key.
+name: vsh-host
+arch: all
+platform: linux
+version: ${VSH_VERSION}
+version_schema: none
+release: ${VSH_RELEASE}
+homepage: https://github.com/yownas/vsh
+license: MIT
+maintainer: ${VSH_MAINTAINER}
+section: admin
+priority: optional
+description: |-
+  vshd, the SSH forced command run on each vsh-host.
+  vshd enforces the permissions in /opt/vsh/etc/vshd.ini and logs every
+  request to syslog. Install user keys in ~root/.ssh/authorized_keys with
+  command="/opt/vsh/bin/vshd user=<name>". A container runtime (vzctl,
+  prlctl or lxc) is needed for containers, but not on a proxy-only host.
+
+overrides:
+  rpm:
+    depends:
+      - bash
+      - openssh-server
+      - util-linux
+      - coreutils
+      - gawk
+      - sed
+      - grep
+      - hostname
+  # bash, coreutils, sed, grep, hostname and util-linux are essential on
+  # Debian, and bsdutils (logger) is required.
+  deb:
+    depends:
+      - openssh-server
+      - mawk | awk
+  # busybox provides logger, awk, sed, grep and hostname.
+  apk:
+    depends:
+      - bash
+      - openssh-server
+
+contents:
+  - dst: /opt/vsh
+    type: dir
+  - dst: /opt/vsh/bin
+    type: dir
+  - dst: /opt/vsh/etc
+    type: dir
+  - dst: /opt/vsh/libexec
+    type: dir
+  - dst: /opt/vsh/modulesd
+    type: dir
+  - src: vshd
+    dst: /opt/vsh/bin/vshd
+    file_info: {mode: 0755}
+  - src: libexec/vshd-Linux
+    dst: /opt/vsh/libexec/vshd-Linux
+    file_info: {mode: 0755}
+  - src: etc/vshd.ini
+    dst: /opt/vsh/etc/vshd.ini
+    type: config|noreplace
+    file_info: {mode: 0644}
+  - src: modulesd/qc
+    dst: /opt/vsh/modulesd/qc
+    file_info: {mode: 0644}
+  - src: doc/VSHD.md
+    dst: /usr/share/doc/vsh-host/VSHD.md
+    file_info: {mode: 0644}
+  - src: doc/VSHD-INI.md
+    dst: /usr/share/doc/vsh-host/VSHD-INI.md
+    file_info: {mode: 0644}
+  - src: doc/MODULES.md
+    dst: /usr/share/doc/vsh-host/MODULES.md
+    file_info: {mode: 0644}
+  - src: LICENSE
+    dst: /usr/share/licenses/vsh-host/LICENSE
+    type: license
+    packager: rpm
+  - src: LICENSE
+    dst: /usr/share/licenses/vsh-host/LICENSE
+    packager: apk
+    file_info: {mode: 0644}
+  # apk keeps edited config files (as .apk-new) only under protected paths,
+  # which are just /etc by default.
+  - src: packaging/apk/vsh.list
+    dst: /etc/apk/protected_paths.d/vsh.list
+    packager: apk
+    file_info: {mode: 0644}
+  - src: LICENSE
+    dst: /usr/share/doc/vsh-host/copyright
+    packager: deb
+    file_info: {mode: 0644}
