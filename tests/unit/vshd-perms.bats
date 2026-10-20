@@ -102,7 +102,7 @@ EOF
 @test "move is checked before the LXC backend refuses it" {
   vshd_as alice "move lxc:app01.vsh.test vshhost1"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"move-live denied for alice"* ]]
+  [[ "$output" == *"move denied for alice"* ]]
 
   vshd_as alice+admin "move lxc:app01.vsh.test vshhost1"
   [[ "$output" == *"Migrating LXC containers not implemented"* ]]
