@@ -1,0 +1,59 @@
+# vsh-proxy: proxy-clients and /opt/vsh/bin/vsh for "* vsh:" chaining.
+# Built by packaging/build.
+name: vsh-proxy
+arch: all
+platform: linux
+version: ${VSH_VERSION}
+version_schema: none
+release: ${VSH_RELEASE}
+homepage: https://github.com/yownas/vsh
+license: MIT
+maintainer: ${VSH_MAINTAINER}
+section: admin
+priority: optional
+description: |-
+  Use a vsh-host as a jump host for plain SSH hosts.
+  Lets vshd proxy SSH connections to the hosts listed in
+  /opt/vsh/etc/proxy-clients, and links /opt/vsh/bin/vsh to the vsh client
+  so that a "* vsh:" entry can chain to other vsh-hosts.
+
+overrides:
+  rpm:
+    depends:
+      - vsh-host = ${VSH_VERSION}-${VSH_RELEASE}
+      - vsh = ${VSH_VERSION}-${VSH_RELEASE}
+      - openssh-clients
+  deb:
+    depends:
+      - vsh-host (= ${VSH_VERSION}-${VSH_RELEASE})
+      - vsh (= ${VSH_VERSION}-${VSH_RELEASE})
+      - openssh-client
+  apk:
+    depends:
+      - vsh-host=${VSH_VERSION}-r${VSH_RELEASE}
+      - vsh=${VSH_VERSION}-r${VSH_RELEASE}
+      - openssh-client
+
+contents:
+  - src: etc/proxy-clients
+    dst: /opt/vsh/etc/proxy-clients
+    type: config|noreplace
+    file_info: {mode: 0644}
+  - src: /usr/bin/vsh
+    dst: /opt/vsh/bin/vsh
+    type: symlink
+  - src: doc/PROXY-CLIENTS.md
+    dst: /usr/share/doc/vsh-proxy/PROXY-CLIENTS.md
+    file_info: {mode: 0644}
+  - src: LICENSE
+    dst: /usr/share/licenses/vsh-proxy/LICENSE
+    type: license
+    packager: rpm
+  - src: LICENSE
+    dst: /usr/share/licenses/vsh-proxy/LICENSE
+    packager: apk
+    file_info: {mode: 0644}
+  - src: LICENSE
+    dst: /usr/share/doc/vsh-proxy/copyright
+    packager: deb
+    file_info: {mode: 0644}

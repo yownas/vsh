@@ -1,0 +1,93 @@
+# vsh: the client and contrib tools. Built by packaging/build.
+name: vsh
+arch: all
+platform: linux
+version: ${VSH_VERSION}
+version_schema: none
+release: ${VSH_RELEASE}
+homepage: https://github.com/yownas/vsh
+license: MIT
+maintainer: ${VSH_MAINTAINER}
+section: admin
+priority: optional
+description: |-
+  Audited per-user root access to containers and hosts over SSH.
+  vsh (Vad Som Helst) gives a team of admins audited, per-user root access
+  to OpenVZ/Virtuozzo and LXC containers, Solaris zones and plain SSH hosts.
+  This package contains the vsh client and the contrib tools (vsh-agent,
+  vcp, vshcopy, bash completion). Client modules are installed as examples
+  in /usr/share/vsh/modules; copy the ones you want to ~/.vsh/modules.
+
+overrides:
+  rpm:
+    depends:
+      - bash
+      - openssh-clients
+      - gawk
+      - sed
+      - grep
+      - bind-utils
+      - hostname
+  # sed, grep and hostname are essential on Debian.
+  deb:
+    depends:
+      - openssh-client
+      - mawk | awk
+      - bind9-host | host
+  # busybox provides awk, sed, grep, hostname and tar.
+  apk:
+    depends:
+      - bash
+      - openssh-client
+      - bind-tools
+
+contents:
+  - src: vsh
+    dst: /usr/bin/vsh
+    file_info: {mode: 0755}
+  - src: contrib/vsh-agent
+    dst: /usr/bin/vsh-agent
+    file_info: {mode: 0755}
+  - src: contrib/vcp
+    dst: /usr/bin/vcp
+    file_info: {mode: 0755}
+  - src: contrib/vshcopy
+    dst: /usr/bin/vshcopy
+    file_info: {mode: 0755}
+  - src: contrib/vcp.alias
+    dst: /usr/share/vsh/vcp.alias
+    file_info: {mode: 0644}
+  - src: contrib/vsh-complete.bash
+    dst: /usr/share/bash-completion/completions/vsh
+    file_info: {mode: 0644}
+  - dst: /usr/share/vsh
+    type: dir
+  - dst: /usr/share/vsh/modules
+    type: dir
+  - src: modules/list
+    dst: /usr/share/vsh/modules/list
+    file_info: {mode: 0644}
+  - src: modules/qc
+    dst: /usr/share/vsh/modules/qc
+    file_info: {mode: 0644}
+  - src: modules/wol
+    dst: /usr/share/vsh/modules/wol
+    file_info: {mode: 0644}
+  - src: README.md
+    dst: /usr/share/doc/vsh/README.md
+    file_info: {mode: 0644}
+  - src: doc/*.md
+    dst: /usr/share/doc/vsh/doc/
+    file_info: {mode: 0644}
+  - src: LICENSE
+    dst: /usr/share/licenses/vsh/LICENSE
+    type: license
+    packager: rpm
+  - src: LICENSE
+    dst: /usr/share/licenses/vsh/LICENSE
+    packager: apk
+    file_info: {mode: 0644}
+  - src: LICENSE
+    dst: /usr/share/doc/vsh/copyright
+    packager: deb
+    file_info: {mode: 0644}

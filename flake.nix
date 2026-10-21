@@ -90,16 +90,36 @@
         integration-onboarding = import ./tests/integration/onboarding.nix testArgs;
       };
 
-      # Unit tier outside the Nix sandbox, in case bwrap is not allowed in it.
-      apps.${system}.unit = {
-        type = "app";
-        program = toString (
-          pkgs.writeShellScript "vsh-unit" ''
-            export PATH=${lib.makeBinPath (unitDeps ++ [ pkgs.openssh ])}:$PATH
-            export VSH_PKG=${vsh}
-            exec bats --print-output-on-failure ${./tests}/unit "$@"
-          ''
-        );
+      apps.${system} = {
+        # Unit tier outside the Nix sandbox, in case bwrap is not allowed in it.
+        unit = {
+          type = "app";
+          program = toString (
+            pkgs.writeShellScript "vsh-unit" ''
+              export PATH=${lib.makeBinPath (unitDeps ++ [ pkgs.openssh ])}:$PATH
+              export VSH_PKG=${vsh}
+              exec bats --print-output-on-failure ${./tests}/unit "$@"
+            ''
+          );
+        };
+
+        # RPM and deb packages from the working tree, see packaging/build. Runs
+        # outside the sandbox because the version comes from `git describe`.
+        packages = {
+          type = "app";
+          program = toString (
+            pkgs.writeShellScript "vsh-build-packages" ''
+              export PATH=${
+                lib.makeBinPath [
+                  pkgs.nfpm
+                  pkgs.gitMinimal
+                  pkgs.coreutils
+                ]
+              }:$PATH
+              exec ${pkgs.bash}/bin/bash ${./packaging/build} "$@"
+            ''
+          );
+        };
       };
 
       # Unit tests in the dev shell run against the working tree (no VSH_PKG).
@@ -108,6 +128,7 @@
           pkgs.openssh
           pkgs.shellcheck
           pkgs.nixfmt
+          pkgs.nfpm
         ];
         shellHook = ''
           export PATH=$PWD/tests:$PATH

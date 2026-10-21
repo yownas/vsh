@@ -1,0 +1,176 @@
+name: packages
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      client:
+        description: vsh (client and contrib tools)
+        type: boolean
+        default: true
+      host:
+        description: vsh-host (vshd)
+        type: boolean
+        default: true
+      proxy:
+        description: vsh-proxy (installs only together with vsh and vsh-host)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the version comes from `git describe`
+      - uses: cachix/install-nix-action@448cde739abec1eaf0646249e3d25bb8d9bc7702 # v31.11.2
+
+      # Inputs are empty outside workflow_dispatch: build everything then.
+      - name: Build RPM, deb and apk packages
+        env:
+          CLIENT: ${{ inputs.client }}
+          HOST: ${{ inputs.host }}
+          PROXY: ${{ inputs.proxy }}
+          # A tag build takes its version from that tag (see packaging/build)
+          VSH_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: |
+          pkgs=()
+          [ "${CLIENT:-true}" = true ] && pkgs+=(client)
+          [ "${HOST:-true}" = true ] && pkgs+=(host)
+          [ "${PROXY:-true}" = true ] && pkgs+=(proxy)
+          if [ ${#pkgs[@]} = 0 ]; then
+            echo "::error::select at least one package"
+            exit 1
+          fi
+          nix run .#packages -- -o dist "${pkgs[@]}"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: packages
+          path: |
+            dist/*.rpm
+            dist/*.deb
+            dist/*.apk
+          if-no-files-found: error
+
+  install:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {image: 'almalinux:8', format: rpm}
+          - {image: 'almalinux:9', format: rpm}
+          - {image: 'almalinux:10', format: rpm}
+          - {image: 'fedora:latest', format: rpm}
+          - {image: 'debian:12', format: deb}
+          - {image: 'debian:13', format: deb}
+          - {image: 'ubuntu:22.04', format: deb}
+          - {image: 'ubuntu:24.04', format: deb}
+          - {image: 'alpine:3.22', format: apk}
+          - {image: 'alpine:3.23', format: apk}
+          - {image: 'alpine:3.24', format: apk}
+    steps:
+      # For packaging/smoke-test, which runs whenever vsh-host was built.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: packaging
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: packages
+          path: dist
+
+      - name: Install and verify on ${{ matrix.image }}
+        if: matrix.format == 'rpm'
+        run: |
+          docker run --rm -v "$PWD/dist:/pkgs:ro" -v "$PWD/packaging:/packaging:ro" "${{ matrix.image }}" sh -euxc '
+            dnf install -y /pkgs/*.rpm
+            names=$(rpm -qp --qf "%{NAME} " /pkgs/*.rpm)
+            rpm -q $names
+            rpm -V $names
+            for f in $(rpm -ql $names | grep -E "^/(usr/bin|opt/vsh/(bin|libexec))/"); do
+              bash -n "$f"
+            done
+            [ ! -e /opt/vsh/bin/vshd ] || /packaging/smoke-test
+          '
+
+      # Ubuntu's images leave out /usr/share/doc, so dpkg --verify reports
+      # the docs as missing (without failing).
+      - name: Install and verify on ${{ matrix.image }}
+        if: matrix.format == 'deb'
+        run: |
+          docker run --rm -v "$PWD/dist:/pkgs:ro" -v "$PWD/packaging:/packaging:ro" "${{ matrix.image }}" sh -euxc '
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y /pkgs/*.deb
+            names=$(for f in /pkgs/*.deb; do dpkg-deb -f "$f" Package; done)
+            dpkg-query -W $names
+            dpkg --verify $names
+            for f in $(dpkg -L $names | grep -E "^/(usr/bin|opt/vsh/(bin|libexec))/."); do
+              bash -n "$f"
+            done
+            [ ! -e /opt/vsh/bin/vshd ] || /packaging/smoke-test
+          '
+
+      # The apks are not signed.
+      - name: Install and verify on ${{ matrix.image }}
+        if: matrix.format == 'apk'
+        run: |
+          docker run --rm -v "$PWD/dist:/pkgs:ro" -v "$PWD/packaging:/packaging:ro" "${{ matrix.image }}" sh -euxc '
+            apk add --allow-untrusted /pkgs/*.apk
+            names=$(for f in /pkgs/*.apk; do tar -xzOf "$f" .PKGINFO 2>/dev/null | sed -n "s/^pkgname = //p"; done)
+            apk info -e $names
+            # apk audit flags the symlink from nfpm as changed (U) right after
+            # install, although it points where it should.
+            if apk audit --system | grep -vx "U opt/vsh/bin/vsh"; then exit 1; fi
+            for f in $(apk info -qL $names | grep -E "^(usr/bin|opt/vsh/(bin|libexec))/."); do
+              bash -n "/$f"
+            done
+            [ ! -e /opt/vsh/bin/vshd ] || /packaging/smoke-test
+          '
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, install]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: packages
+          path: dist
+
+      # Only a plain v<version> tag (v1.4.0) is a full release; anything with
+      # a suffix (v1.4.0-rc1, v1.4.0-beta.2) is a pre-release. An existing
+      # release is marked as a pre-release too, but never unmarked.
+      - name: Attach packages to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          pre=true
+          [[ $TAG =~ ^v[0-9]+(\.[0-9]+)*$ ]] && pre=false
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            [ "$pre" = false ] || gh release edit "$TAG" --prerelease
+          else
+            gh release create "$TAG" --verify-tag --generate-notes --prerelease="$pre"
+          fi
+          # GitHub turns "~" in asset names into ".", so vsh-1.4.0~rc1 would
+          # look like a version after 1.4.0. The version inside keeps the ~.
+          for f in dist/*~*; do
+            [ -e "$f" ] && mv "$f" "${f//\~/_}"
+          done
+          gh release upload "$TAG" dist/*.rpm dist/*.deb dist/*.apk --clobber
