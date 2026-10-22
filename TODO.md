@@ -70,6 +70,13 @@ file without creating `~/.ssh`, so on a fresh account no host keys are saved.
   NXDOMAIN there (dnsmasq `address=`) breaks name lookups.
 - `egrep` prints "egrep is obsolescent" warnings on GNU grep >= 3.8, which
   reach the client's stderr.
+- `libexec/vshd-FreeBSD` is only placeholders: every function prints
+  "NOT IMPLEMENTED ON HOST" and `vsh_cttoname` is missing, so `run` on a
+  FreeBSD vsh-host fails with "command not found". Only the vshd core
+  (permissions, hostrun, `ssh:` proxies) works there.
+- `libexec/vshd-SunOS` uses `tail +2`, which GNU tail rejects, and vshd's
+  permission checks need `ENVIRON` in awk, which the traditional Solaris
+  `/usr/bin/awk` may not have. Neither shows up with stubbed backends.
 - shellcheck cannot parse `vsh` line 16 (`[ \! ... ]`) or `modules/qc` and
   skips most of those files, so the lint report understates them.
 - doc/TROUBLESHOOTING: OpenSSH >= 9.8 `PerSourcePenalties` locks a
@@ -78,18 +85,90 @@ file without creating `~/.ssh`, so on a fresh account no host keys are saved.
 
 ## Test suite backlog
 
+Coverage today: vshd permission checks, request parsing, logging, LXC and
+`ssh:` proxy `run`, and the client's run/list/hostrun/`-k`/`-o` paths are
+well covered in both tiers. The gaps are the non-LXC backends, the less
+used client options, and everything in `modules/` and `contrib/`.
+
+### Small (unit tier, existing helpers)
+
+- `contrib/vsh-complete.bash`: source it with a ctstate file, set
+  `COMP_WORDS`/`COMP_CWORD`, call `_vsh` and check `COMPREPLY`.
+- vshd denials for `move-offline`, `moveall` and `moveall-offline`; each is
+  its own branch with its own error message.
+- Client requests for `-o moveall`, `-o moveall-offline` and
+  `-o move-offline`.
+- Proxy clients: a `user@host` entry (`gw3 ssh:deploy@target` runs
+  `ssh deploy@target`) and a `runas` user on a proxy alias
+  (`ssh app@target`).
+- `vsh -d` with `VSH_DISTKEYFOLDER`, and `VSH_HOSTFILE` selecting which
+  hosts get `list`.
+- `vsh -g <role>` writes `user=<me>+<role>` into the dist key (stub
+  `ssh-keygen` to avoid the passphrase prompt).
+- `[hosts]` and `[modules]` entries naming a single host or module, not
+  only `*`.
+- `modules/wol`: stub `socat`, check the magic packet (`FF`x6 + MAC x16),
+  the host pattern and that malformed MACs are skipped.
+- `contrib/vshcopy`: stub `vsh`, check the `cd <dir> && tar` commands for
+  local to remote, remote to local and remote to remote.
+- vshd `list` with `vsh:` entries in proxy-clients (reuse the stub `vsh`
+  from the KB-4 test).
+
+### Backends
+
 - OpenVZ backend: a Nix-packaged `vzlist`/`vzctl`/`vzmigrate` shim with
-  per-CT state and argv logging, to cover `move` (live/offline), running as
-  a non-root `runas` user (`su -`) and the `qc` module.
+  per-CT state and argv logging, to cover `move` (live/offline), the
+  `moveall` round-robin over hosts, running as a non-root `runas` user
+  (`su -`, including the `\'"$tmp_ccmd"\'` quoting) and the `qc` module
+  (`modules/qc`, `modulesd/qc`). A plain argv-recording stub in the unit
+  tier gets most of this before the full shim exists.
 - Virtuozzo backend: `prlctl` personality of the same shim.
-- SunOS and FreeBSD backends (`libexec/vshd-SunOS`, `vshd-FreeBSD`).
+- SunOS and FreeBSD backends (`libexec/vshd-SunOS`, `vshd-FreeBSD`). vshd
+  picks the backend with `$(uname)` from `PATH`, so a `uname` stub plus
+  `zoneadm`/`zlogin` (or jail) stubs can run the existing unit tests
+  against each backend; `setup_vshd` then needs to copy all of `libexec/`.
+  This tests the backend logic with GNU tools only.
+- SunOS and FreeBSD in real VMs, to catch the native awk/sed/grep/tail
+  differences and drive real zones/jails. On GitHub, `vmactions/freebsd-vm`
+  and `vmactions/omnios-vm` (or `openindiana-vm`, `solaris-vm`) boot QEMU
+  VMs on `ubuntu-latest` with KVM, as the integration job does. Boot takes
+  minutes, so run them on a schedule, `workflow_dispatch` and PRs touching
+  `vshd` or `libexec/`.
+  - The VM is throwaway, so run the unit tier with vshd directly as root
+    instead of in bwrap (no bwrap on FreeBSD/illumos). This is the same
+    bwrap-free `vshd_as` mode the packaged-distro job below needs.
+  - FreeBSD: only the vshd core until `vshd-FreeBSD` has a jail backend.
+  - OmniOS: the vshd core plus one real zone for `list`/`run`/`start`/`stop`.
+  - Locally: fetch FreeBSD's `BASIC-CI` image with a pinned hash in the
+    flake and boot it with a small QEMU wrapper (`vsh-test freebsd`) over
+    ssh; the NixOS test driver cannot drive non-NixOS guests. OmniOS
+    publishes cloud images with a `.sha256` for stable and LTS
+    (`downloads.omnios.org/media/stable/omnios-r151058.cloud.qcow2`, also
+    raw.zst/vmdk), so the same works for it; how that image takes an ssh
+    key at first boot is undocumented, so check that first.
+    `vmactions/omnios-vm` instead boots its own qcow2 built by
+    `anyvm-org/omnios-builder` (installer ISO, SSH enabled), and supports
+    r151046 to r151058 including the LTS releases.
+  - OmniOS also publishes a non-global zone image (`*.ngz.zfs.xz`), which
+    should let the test zone be installed without reaching the package
+    repository.
+
+### Integration
+
 - `vsh -x` (X11 forwarding) and `contrib/vcp` / `vshcopy`, which need sshd
   inside the container rootfs.
 - `vsh:` proxy (vshd using vsh to reach other hosts) end to end.
-- `contrib/vsh-complete.bash`.
+- Onboarding a role key: `vsh -g admin`, install the dist key, use it as
+  `alice+admin`.
+
+### Tooling and CI
+
+- Measure line coverage with kcov (bash tracing under bats), starting with
+  the client and contrib tests that run outside bwrap.
 - Run the unit tier against the installed packages on every distro in the
   `packages` workflow's install job (EL8/9/10, Fedora, Debian, Ubuntu,
-  Alpine), replacing `packaging/smoke-test`:
+  Alpine), replacing `packaging/smoke-test`. The bwrap-free `vshd_as` mode
+  is shared with the SunOS/FreeBSD VM jobs, so do this first:
   - `vshd_as` mounts only `/nix` in bwrap and limits `PATH` to store paths;
     without `/nix`, mount `/usr` (and `/bin`, `/lib`, `/sbin` where they are
     real directories, as on Alpine) and use the system `PATH`.
